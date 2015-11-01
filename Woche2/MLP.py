@@ -55,6 +55,9 @@ class MLP:
         self.weights_1 += learning_rate * numpy.atleast_2d(results[0]).T.dot(numpy.atleast_2d(delta1))
         self.weights_2 += learning_rate * numpy.atleast_2d(results[1]).T.dot(numpy.atleast_2d(delta2))
 
+        #self.bias_1 = min(0, -(learning_rate * delta1) + self.bias_1)
+        #self.bias_2 = min(0, -(learning_rate * delta2) + self.bias_2)
+
         # returns the absolute error (distance of target output and actual output)
         return abs(error[0])
 

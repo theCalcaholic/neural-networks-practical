@@ -1,6 +1,8 @@
 import numpy
-import KTimage as KT
-import math
+from .InputLayer import InputLayer
+from .OutputLayer import OutputLayer
+from .HiddenLayer import HiddenLayer
+
 
 # directory for observing the results
 path_obs = "res/"
@@ -12,28 +14,64 @@ class MLP:
     @size_in: number of input neurons
     @size_out: number of output neurons
     @size_hid: number of hidden layer neurons"""
-    def __init__(self, size_in, size_out, size_hid):
-        self.size_in = size_in
+    def __init__(self,
+                 in_size=0,
+                 out_size=0,
+                 hidden_sizes=[], hidden_fns=[], hidden_fns_deriv=[]):
+        self.populated = False
+        self.trained = False
+        """self.size_in = size_in
         self.size_out = size_out
-        self.size_hid = size_hid
+        self.size_hid = size_hid"""
+        self.layers = []
+
+        if in_size and out_size:
+            self.populate(in_size, out_size, hidden_sizes)
 
         # the activation function is a sigmoid function
-        self.activation = MLP.activation_sigmoid
-        self.activation_deriv = MLP.activation_sigmoid_deriv
+        """self.activation = MLP.activation_sigmoid
+        self.activation_deriv = MLP.activation_sigmoid_deriv"""
 
         # create randomly initialized weight matrices for the hidden and the output layer
-        self.weights_1 = numpy.random.uniform(-1.0, 1.0, (self.size_in, self.size_hid))
-        self.weights_2 = numpy.random.uniform(-1.0, 1.0, (self.size_hid, self.size_out))
+        """self.weights_1 = numpy.random.uniform(-1.0, 1.0, (self.size_in, self.size_hid))
+        self.weights_2 = numpy.random.uniform(-1.0, 1.0, (self.size_hid, self.size_out))"""
+
+    def populate(self, in_size,
+                 out_size, out_fn, out_fn_deriv,
+                 hidden_sizes=[], hidden_fns=[], hidden_fns_deriv=[]):
+        self.layers = []
+        if len(hidden_sizes) > 0:
+            self.layers.append(InputLayer(in_size, out_size))
+        else:
+            self.layers.append(InputLayer(in_size, hidden_sizes[0]))
+            for cur_out, fn, fn_deriv in zip(hidden_sizes[1:], hidden_fns, hidden_fns_deriv):
+                self.layers.append(HiddenLayer(
+                    in_size=self.layers[-1].size,
+                    out_size=cur_out,
+                    activation_fn=fn,
+                    activation_fn_deriv=fn_deriv))
+            self.layers.append(OutputLayer(
+                in_size=self.layers[-1].size,
+                out_size=out_size,
+                activation_fn=out_fn,
+                activation_fn_deriv=out_fn_deriv))
+        self.populated = True
 
     """applies the MLP network to a set of input data and returns a list of the outputs of each perceptron layer"""
     def feedforward(self, data):
         results = [data]
-        results.append(
+
+        for layer in self.layers:
+            results.append(
+                layer.feed(results[-1])
+            )
+
+        """results.append(
             # apply hidden layer on input
             self.activation(numpy.dot(results[0], self.weights_1)))
         results.append(
             # apply output layer on input
-            self.activation(numpy.dot(results[1], self.weights_2)))
+            self.activation(numpy.dot(results[1], self.weights_2)))"""
 
         return results
 
@@ -46,20 +84,28 @@ class MLP:
     def backpropagate(self, results, target_output, learning_rate):
 
         # calculate output error
-        error = target_output - results[2]
+        error = target_output - results[-1]
+        deltas = [self.layers[-1].get_delta(results[-1], error)]
 
-        delta2 = error * self.activation_deriv(results[2])
-        delta1 = delta2.dot(self.weights_2.T) * self.activation_deriv(results[1])
+        for result, last_layer, layer in reversed(zip(results[:-1], self.layers[1:], self.layers[:-1])):
+            deltas.append(layer.get_delta(result, last_layer.weights, result))
 
-        # adjust weights
+        """delta2 = error * self.activation_deriv(results[2])
+        delta1 = delta2.dot(self.weights_2.T) * self.activation_deriv(results[1])"""
+
+        for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers[1:]):
+            layer.learn(result, delta)
+
+        """# adjust weights
         self.weights_1 += learning_rate * numpy.atleast_2d(results[0]).T.dot(numpy.atleast_2d(delta1))
-        self.weights_2 += learning_rate * numpy.atleast_2d(results[1]).T.dot(numpy.atleast_2d(delta2))
+        #numpy.outer(results[0], delta1)
+        self.weights_2 += learning_rate * numpy.atleast_2d(results[1]).T.dot(numpy.atleast_2d(delta2))"""
 
         #self.bias_1 = min(0, -(learning_rate * delta1) + self.bias_1)
         #self.bias_2 = min(0, -(learning_rate * delta2) + self.bias_2)
 
         # returns the absolute error (distance of target output and actual output)
-        return abs(error[0])
+        return error[0]**2
 
     """Trains the MLP with the given training data
     @t_input: Set of training input vectors
@@ -78,30 +124,6 @@ class MLP:
     """Returns predicted output vector for a given input vector data_in"""
     def predict(self, data_in):
         return self.feedforward(data_in)[-1]
-
-    @staticmethod
-    def activation_sigmoid(x):
-        return 1 / (1 + math.e**(-x))
-
-    @staticmethod
-    def activation_sigmoid_deriv(x):
-        return MLP.activation_sigmoid(x) * (1 - MLP.activation_sigmoid(x))
-
-    @staticmethod
-    def activation_linear(x):
-        return x
-
-    @staticmethod
-    def activation_linear_deriv(x):
-        return 1
-
-    @staticmethod
-    def activation_tanh(x):
-        return numpy.tanh(x)
-
-    @staticmethod
-    def activation_tanh_deriv(x):
-        return 1.0 - numpy.tanh(x)**2
 
 
 data_in_xor = numpy.array([[0, 0], [0, 1], [1, 0], [1, 1]])

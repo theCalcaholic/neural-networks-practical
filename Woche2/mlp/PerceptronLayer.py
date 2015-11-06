@@ -12,6 +12,11 @@ class PerceptronLayer:
     def feed(self, data):
         return self.activation(numpy.dot(data, self.weights))
 
+    def learn(self, result, delta, learning_rate):
+        #self.weights += learning_rate * numpy.outer(result, delta)
+        self.weights += learning_rate * numpy.atleast_2d(result).T.dot(numpy.atleast_2d(delta))
+
+
     @classmethod
     def activation_linear(cls, x):
         return x

@@ -87,14 +87,14 @@ class MLP:
         error = target_output - results[-1]
         deltas = [self.layers[-1].get_delta(results[-1], error)]
 
-        for result, last_layer, layer in reversed(zip(results[:-1], self.layers[1:], self.layers[:-1])):
-            deltas.append(layer.get_delta(result, last_layer.weights, result))
+        for result, last_layer, layer in reversed(zip(results[1:-1], self.layers[1:], self.layers[:-1])):
+            deltas.append(layer.get_delta(deltas[-1], result, last_layer.weights))
 
         """delta2 = error * self.activation_deriv(results[2])
         delta1 = delta2.dot(self.weights_2.T) * self.activation_deriv(results[1])"""
 
-        for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers[1:]):
-            layer.learn(result, delta)
+        for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers):
+            layer.learn(result, delta, learning_rate)
 
         """# adjust weights
         self.weights_1 += learning_rate * numpy.atleast_2d(results[0]).T.dot(numpy.atleast_2d(delta1))

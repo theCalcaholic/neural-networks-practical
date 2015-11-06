@@ -4,7 +4,7 @@ import math
 
 class PerceptronLayer:
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
-        self.weights = numpy.random.uniform(-1.0, 1.0, in_size, out_size)
+        self.weights = numpy.random.uniform(-1.0, 1.0, (in_size, out_size))
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = in_size

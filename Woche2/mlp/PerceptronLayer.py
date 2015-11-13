@@ -2,19 +2,22 @@ import numpy
 import math
 
 
-class PerceptronLayer:
+class PerceptronLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
-        self.weights = numpy.random.uniform(-1.0, 1.0, (in_size, out_size))
+        self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size))
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
-        self.size = in_size
+        self.size = out_size
 
     def feed(self, data):
-        return self.activation(numpy.dot(data, self.weights))
+        return self.activation(numpy.dot(self.weights, data))
 
     def learn(self, result, delta, learning_rate):
         #self.weights += learning_rate * numpy.outer(result, delta)
-        self.weights += learning_rate * numpy.atleast_2d(result).T.dot(numpy.atleast_2d(delta))
+        delta_weights = learning_rate * numpy.outer(delta, result)
+        #print("delta_weights: " + str(delta_weights))
+        #print("weights: ", self.weights)
+        self.weights += delta_weights
 
 
     @classmethod
@@ -27,7 +30,7 @@ class PerceptronLayer:
 
     @classmethod
     def activation_sigmoid(cls, x):
-        return 1 / (1 + math.e**(-x))
+        return 1 / (1 + numpy.exp(-x))
 
     @classmethod
     def activation_sigmoid_deriv(cls, x):

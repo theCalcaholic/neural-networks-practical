@@ -19,7 +19,7 @@ class MLP:
                  in_size=0,
                  out_size=0,
                  hidden_sizes=[], hidden_fns=[], hidden_fns_deriv=[],
-                 learning_rate=0.1):
+                 learning_rate=0.01):
         self.populated = False
         self.trained = False
         self.learning_rate = learning_rate
@@ -108,11 +108,6 @@ class MLP:
         for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers):
             layer.learn(result, delta, self.learning_rate)
 
-        """# adjust weights
-        self.weights_1 += learning_rate * numpy.atleast_2d(results[0]).T.dot(numpy.atleast_2d(delta1))
-        #numpy.outer(results[0], delta1)
-        self.weights_2 += learning_rate * numpy.atleast_2d(results[1]).T.dot(numpy.atleast_2d(delta2))"""
-
         #self.bias_1 = min(0, -(learning_rate * delta1) + self.bias_1)
         #self.bias_2 = min(0, -(learning_rate * delta2) + self.bias_2)
 
@@ -124,9 +119,7 @@ class MLP:
     @t_output: Set of training output vectors matching t_input
     @iterations: number of training epochs
     @learning_rate: Influences the performance (the higher the better) and accuracy (the lower the better)"""
-    def train(self, t_input, t_output, iterations=10000, learning_rate=None):
-        if learning_rate:
-            self.learning_rate = learning_rate
+    def train(self, t_input, t_output, iterations=10000):
         t_input = t_input
         for i in range(iterations):
             errors = []
@@ -144,6 +137,9 @@ class MLP:
             print("Layer " + str(i) + " (" + self.layers[i].layer_type + "):")
             print("  shape: " + str(numpy.shape(self.layers[i].weights)))
             print("  activation_fn: " + str(self.layers[i].activation))
+
+    def set_learning_rate(self, val):
+        self.learning_rate = val
 
 
 data_in_xor = numpy.array([[0, 0], [0, 1], [1, 0], [1, 1]])
@@ -166,7 +162,8 @@ mlp = MLP(in_size=2,
           hidden_fns=[PerceptronLayer.activation_sigmoid],
           hidden_fns_deriv=[PerceptronLayer.activation_sigmoid_deriv])
 
-mlp.train(data_in, data_out, learning_rate=0.001)
+mlp.set_learning_rate(0.01)
+mlp.train(data_in, data_out)
 
 """mlp.populate(in_size=2,
              out_size=1,

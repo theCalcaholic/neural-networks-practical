@@ -154,8 +154,6 @@ data_out_or = numpy.array([[0], [1], [1], [1]])
 data_in = data_in_xor
 data_out = data_out_xor
 
-test = [3]
-
 mlp = MLP(in_size=2,
           out_size=1,
           hidden_sizes=[3],
@@ -163,20 +161,5 @@ mlp = MLP(in_size=2,
           hidden_fns_deriv=[PerceptronLayer.activation_sigmoid_deriv])
 
 mlp.set_learning_rate(0.01)
+
 mlp.train(data_in, data_out)
-
-"""mlp.populate(in_size=2,
-             out_size=1,
-             hidden_sizes=[3],
-             hidden_fns=[PerceptronLayer.activation_sigmoid],
-             hidden_fns_deriv=[PerceptronLayer.activation_sigmoid_deriv])"""
-
-
-#mlp.layers[0].weights = numpy.array(mlp2.W_1)
-#mlp.layers[1].weights = numpy.array(mlp2.W_2)
-
-#mlp.print_layers()
-
-"""print("Feedforward mlp1:")
-print(mlp.feedforward(data_in))
-print("")"""

@@ -1,5 +1,4 @@
 import numpy
-import math
 
 
 class PerceptronLayer(object):
@@ -13,11 +12,12 @@ class PerceptronLayer(object):
         return self.activation(numpy.dot(self.weights, data))
 
     def learn(self, result, delta, learning_rate):
-        #self.weights += learning_rate * numpy.outer(result, delta)
         delta_weights = learning_rate * numpy.outer(delta, result)
-        #print("delta_weights: " + str(delta_weights))
-        #print("weights: ", self.weights)
         self.weights += delta_weights
+
+    def get_delta(self, result, last_delta, last_weights):
+        last_weights = numpy.atleast_2d(last_weights)
+        return numpy.dot(last_delta, last_weights) * self.activation_deriv(result)
 
 
     @classmethod

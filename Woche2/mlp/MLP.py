@@ -23,26 +23,14 @@ class MLP:
         self.populated = False
         self.trained = False
         self.learning_rate = learning_rate
-        """self.size_in = size_in
-        self.size_out = size_out
-        self.size_hid = size_hid"""
         self.layers = []
 
         if in_size and out_size:
             self.populate(in_size, out_size, hidden_sizes, hidden_fns, hidden_fns_deriv)
 
-        # the activation function is a sigmoid function
-        """self.activation = MLP.activation_sigmoid
-        self.activation_deriv = MLP.activation_sigmoid_deriv"""
-
-        # create randomly initialized weight matrices for the hidden and the output layer
-        """self.weights_1 = numpy.random.uniform(-1.0, 1.0, (self.size_in, self.size_hid))
-        self.weights_2 = numpy.random.uniform(-1.0, 1.0, (self.size_hid, self.size_out))"""
-
     def populate(self, in_size,
                  out_size,
                  hidden_sizes=[], hidden_fns=[], hidden_fns_deriv=[]):
-        print("populate!")
         self.layers = []
         self.layers.append(HiddenLayer(in_size, hidden_sizes[0], hidden_fns[0], hidden_fns_deriv[0]))
         if len(hidden_sizes) != 0:
@@ -65,6 +53,8 @@ class MLP:
             results.append(
                 layer.feed(results[-1])
             )
+
+        #print("feedforward(" + str(data[0]) + ", " + str(data[1]) + ") = " + str(results[-1][0]))
 
         """results.append(
             # apply hidden layer on input
@@ -101,7 +91,7 @@ class MLP:
                 )
             )
 
-
+        error = deltas[0][0]**2
         """delta2 = error * self.activation_deriv(results[2])
         delta1 = delta2.dot(self.weights_2.T) * self.activation_deriv(results[1])"""
 
@@ -112,25 +102,25 @@ class MLP:
         #self.bias_2 = min(0, -(learning_rate * delta2) + self.bias_2)
 
         # returns the absolute error (distance of target output and actual output)
-        return deltas[0][0]**2
+        return error
 
     """Trains the MLP with the given training data
     @t_input: Set of training input vectors
     @t_output: Set of training output vectors matching t_input
     @iterations: number of training epochs
     @learning_rate: Influences the performance (the higher the better) and accuracy (the lower the better)"""
-    def train(self, t_input, t_output, iterations=10000):
+    def train(self, t_input, t_output, iterations=100000):
         t_input = t_input
         for i in range(iterations):
             errors = []
-            for j in numpy.nditer(t_input):
+            for j in range(0, numpy.shape(t_input)[0]):
                 errors.append(self.backpropagate(self.feedforward(t_input[j]), t_output[j]))
-            if not i % 10:
+            if not i % 100:
                 print "Error: ", (sum(errors) / float(len(errors))), "\n"
 
     """Returns predicted output vector for a given input vector data_in"""
     def predict(self, data_in):
-        return self.feedforward(data_in)[-1]
+        return self.feedforward(data_in)
 
     def print_layers(self):
         for i in range(len(self.layers)):

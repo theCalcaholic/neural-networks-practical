@@ -12,14 +12,25 @@ data_out_or = numpy.array([[0], [1], [1], [1]])
 data_out = data_out_xor
 
 mlp = MLP(in_size=2,
-          out_size=1,
-          hidden_layers=[{
-              "size": 3,
-              "fn": Layer.activation_sigmoid,
-              "fn_deriv": Layer.activation_sigmoid_deriv
-          }])
+          layers=[
+              {
+                  "size": 3,
+                  "fn": Layer.activation_sigmoid,
+                  "fn_deriv": Layer.activation_sigmoid_deriv
+              },
+              {
+                  "size": 1,
+                  "fn": None,
+                  "fn_deriv": None
+              }
+          ]
+          )
 
-mlp.set_learning_rate(0.01)
+mlp.configure({
+    "learning_rate": 0.02,
+    "target_precision": 0.0,
+    "max_iterations": 100000
+})
 
 mlp.train(data_in, data_out)
 

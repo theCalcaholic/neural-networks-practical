@@ -15,20 +15,25 @@ class MLP:
     @size_hid: number of hidden layer neurons"""
     def __init__(self,
                  in_size=0,
-                 out_size=0,
-                 hidden_layers=None,
-                 learning_rate=0.01):
+                 layers=None,
+                 config=dict()):
+        assert isinstance(config, dict)
         self.populated = False
         self.trained = False
-        self.learning_rate = learning_rate
         self.layers = []
-        self.hidden_layer_specs = hidden_layers
 
-        if in_size and out_size:
-            self.populate(in_size, out_size, hidden_layers)
+        self.layers_specs = layers
+        self.config = {
+            "learning_rate": 0.02,
+            "target_precision": 0,
+            "max_iterations": 10000
+        }
+        self.configure(config)
+
+        if in_size and len(layers) >= 0:
+            self.populate(in_size, layers)
 
     def populate(self, in_size,
-                 out_size,
                  hidden_layers=None):
         hidden_layers = hidden_layers or self.hidden_layer_specs or []
         self.layers = []
@@ -39,22 +44,27 @@ class MLP:
             activation_fn_deriv=hidden_layers[0]["fn_deriv"] or Layer.activation_linear_deriv))
 
         if len(hidden_layers) != 0:
-            for cur_layer in hidden_layers[1:]:
+            for cur_layer in hidden_layers[1:-1]:
                 self.layers.append(Layer(
                     in_size=self.layers[-1].size,
                     out_size=cur_layer["size"],
                     activation_fn=cur_layer["fn"] or Layer.activation_sigmoid,
                     activation_fn_deriv=cur_layer["fn_deriv"] or Layer.activation_sigmoid_deriv))
 
-        self.layers.append(OutputLayer(
+        self.layers.append(Layer(
             in_size=self.layers[-1].size,
-            out_size=out_size))
+            out_size=hidden_layers[-1]["size"],
+            activation_fn=Layer.activation_linear,
+            activation_fn_deriv=Layer.activation_linear_deriv
+        ))
         self.populated = True
 
     """applies the MLP network to a set of input data and returns a list of the outputs of each perceptron layer"""
     def feedforward(self, data):
-        results = [data]
+        if not self.populated:
+            raise Exception("MLP must be populated first (Have a look at method MLP.populate())!")
 
+        results = [data]
         for layer in self.layers:
             results.append(
                 layer.feed(results[-1])
@@ -69,6 +79,8 @@ class MLP:
     @target_output: A vector of output values to be used as training reference
     @learning_rate: Influences the performance (the higher the better) and accuracy (the lower the better)"""
     def backpropagate(self, results, target_output):
+        if not self.populated:
+            raise Exception("MLP must be populated first (Have a look at method MLP.populate())!")
 
         # calculate output error
         deltas = [target_output - results[-1]]
@@ -90,7 +102,7 @@ class MLP:
         error = deltas[0][0]**2
 
         for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers):
-            layer.learn(result, delta, self.learning_rate)
+            layer.learn(result, delta, self.config["learning_rate"])
 
         #self.bias_1 = min(0, -(learning_rate * delta1) + self.bias_1)
         #self.bias_2 = min(0, -(learning_rate * delta2) + self.bias_2)
@@ -103,17 +115,24 @@ class MLP:
     @t_output: Set of training output vectors matching t_input
     @iterations: number of training epochs
     @learning_rate: Influences the performance (the higher the better) and accuracy (the lower the better)"""
-    def train(self, t_input, t_output, iterations=100000):
+    def train(self, t_input, t_output):
         t_input = t_input
-        for i in range(iterations):
+        for i in range(self.config["max_iterations"]):
             errors = []
             for j in range(0, numpy.shape(t_input)[0]):
                 errors.append(self.backpropagate(self.feedforward(t_input[j]), t_output[j]))
+            error = sum(errors) / float(len(errors))
+            if error < self.config["target_precision"]:
+                self.trained = True
+                return
             if not i % 100:
-                print "Error: ", (sum(errors) / float(len(errors))), "\n"
+                print "Error: ", error, "\n"
+        self.trained = True
 
     """Returns predicted output vector for a given input vector data_in"""
     def predict(self, data_in):
+        if not self.trained:
+            raise Exception("MLP must be trained first!")
         return self.feedforward(data_in)[-1][0]
 
     def print_layers(self):
@@ -122,12 +141,34 @@ class MLP:
             print("  shape: " + str(numpy.shape(self.layers[i].weights)))
             print("  activation_fn: " + str(self.layers[i].activation))
 
+    """Adds a hidden layer to the MLP.
+    @size: the number of nodes the new layer will have
+    @fn: the layers activation function
+    @fn_deriv: the layers activation functions derivation"""
     def add_layer(self, size, fn, fn_deriv):
-        self.hidden_layers.append({
+        self.layers_specs.append({
             "size": size,
             "fn": fn,
             "fn_deriv": fn_deriv
         })
 
-    def set_learning_rate(self, val):
-        self.learning_rate = val
+    """Adds a list of hidden layers to the MLP. Each layer must be a dict containing
+        the keys 'size', 'fn' and 'fn_deriv'"""
+    def add_layers(self, layer_list):
+        for layer in layer_list:
+            self.add_layer(layer["size"], layer["fn"], layer["fn_deriv"])
+
+    """Expects a dictionary of configuration options to update the existing values. Possible options are:
+    learning_rate (float): Determines how fast and precise the network is going to learn -
+            higher learning rate means faster learning and lower learning precision.
+    target_precision (float): Sets the target precision for early stopping. To disable early stopping at all,
+            set this value to 0.
+    max_iterations (float): The maximum number of iterations over which the MLP should be trained"""
+    def configure(self, config):
+        assert isinstance(config, dict)
+        assert "learning_rate" not in config or isinstance(config["learning_rate"], float) \
+            and config["max_iterations"] > 0
+        assert "target_precision" not in config or isinstance(config["target_precision"], float)
+        assert "max_iterations" not in config or isinstance(config["max_iterations"], int) \
+            and config["max_iterations"] > 0
+        self.config.update(config)

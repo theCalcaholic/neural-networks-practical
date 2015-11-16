@@ -34,7 +34,7 @@ class PerceptronLayer(object):
 
     @classmethod
     def activation_sigmoid_deriv(cls, x):
-        return cls.activation_sigmoid(x) * (1 - cls.activation_sigmoid(x))
+        return x * (1 - x)
 
     @classmethod
     def activation_tanh(cls, x):

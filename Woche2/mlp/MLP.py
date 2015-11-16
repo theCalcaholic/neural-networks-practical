@@ -1,8 +1,6 @@
 import numpy
 from OutputLayer import OutputLayer
-from HiddenLayer import HiddenLayer
-from PerceptronLayer import PerceptronLayer
-from SimpleMLP import MLP as SimpleMLP
+from PerceptronLayer import PerceptronLayer as Layer
 
 
 # directory for observing the results
@@ -18,28 +16,36 @@ class MLP:
     def __init__(self,
                  in_size=0,
                  out_size=0,
-                 hidden_sizes=[], hidden_fns=[], hidden_fns_deriv=[],
+                 hidden_layers=None,
                  learning_rate=0.01):
         self.populated = False
         self.trained = False
         self.learning_rate = learning_rate
         self.layers = []
+        self.hidden_layer_specs = hidden_layers
 
         if in_size and out_size:
-            self.populate(in_size, out_size, hidden_sizes, hidden_fns, hidden_fns_deriv)
+            self.populate(in_size, out_size, hidden_layers)
 
     def populate(self, in_size,
                  out_size,
-                 hidden_sizes=[], hidden_fns=[], hidden_fns_deriv=[]):
+                 hidden_layers=None):
+        hidden_layers = hidden_layers or self.hidden_layer_specs or []
         self.layers = []
-        self.layers.append(HiddenLayer(in_size, hidden_sizes[0], hidden_fns[0], hidden_fns_deriv[0]))
-        if len(hidden_sizes) != 0:
-            for cur_size, fn, fn_deriv in zip(hidden_sizes[1:], hidden_fns[1:], hidden_fns_deriv[1:]):
-                self.layers.append(HiddenLayer(
+        self.layers.append(Layer(
+            in_size=in_size,
+            out_size=hidden_layers[0]["size"],
+            activation_fn=hidden_layers[0]["fn"] or Layer.activation_linear,
+            activation_fn_deriv=hidden_layers[0]["fn_deriv"] or Layer.activation_linear_deriv))
+
+        if len(hidden_layers) != 0:
+            for cur_layer in hidden_layers[1:]:
+                self.layers.append(Layer(
                     in_size=self.layers[-1].size,
-                    out_size=cur_size,
-                    activation_fn=fn,
-                    activation_fn_deriv=fn_deriv))
+                    out_size=cur_layer["size"],
+                    activation_fn=cur_layer["fn"] or Layer.activation_sigmoid,
+                    activation_fn_deriv=cur_layer["fn_deriv"] or Layer.activation_sigmoid_deriv))
+
         self.layers.append(OutputLayer(
             in_size=self.layers[-1].size,
             out_size=out_size))
@@ -53,16 +59,6 @@ class MLP:
             results.append(
                 layer.feed(results[-1])
             )
-
-        #print("feedforward(" + str(data[0]) + ", " + str(data[1]) + ") = " + str(results[-1][0]))
-
-        """results.append(
-            # apply hidden layer on input
-            self.activation(numpy.dot(results[0
-            ], self.weights_1)))
-        results.append(
-            # apply output layer on input
-            self.activation(numpy.dot(results[1], self.weights_2)))"""
 
         return results
 
@@ -92,8 +88,6 @@ class MLP:
             )
 
         error = deltas[0][0]**2
-        """delta2 = error * self.activation_deriv(results[2])
-        delta1 = delta2.dot(self.weights_2.T) * self.activation_deriv(results[1])"""
 
         for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers):
             layer.learn(result, delta, self.learning_rate)
@@ -120,13 +114,20 @@ class MLP:
 
     """Returns predicted output vector for a given input vector data_in"""
     def predict(self, data_in):
-        return self.feedforward(data_in)
+        return self.feedforward(data_in)[-1][0]
 
     def print_layers(self):
         for i in range(len(self.layers)):
-            print("Layer " + str(i) + " (" + self.layers[i].layer_type + "):")
+            print("Layer " + str(i) + ":")
             print("  shape: " + str(numpy.shape(self.layers[i].weights)))
             print("  activation_fn: " + str(self.layers[i].activation))
+
+    def add_layer(self, size, fn, fn_deriv):
+        self.hidden_layers.append({
+            "size": size,
+            "fn": fn,
+            "fn_deriv": fn_deriv
+        })
 
     def set_learning_rate(self, val):
         self.learning_rate = val

@@ -23,8 +23,7 @@ mlp = MLP(in_size=2,
                   "fn": None,
                   "fn_deriv": None
               }
-          ]
-          )
+          ])
 
 mlp.configure({
     "learning_rate": 0.02,

@@ -34,17 +34,17 @@ class MLP:
             self.populate(in_size, layers)
 
     def populate(self, in_size,
-                 hidden_layers=None):
-        hidden_layers = hidden_layers or self.hidden_layer_specs or []
+                 layers=None):
+        layers = layers or self.layers_specs or []
         self.layers = []
         self.layers.append(Layer(
             in_size=in_size,
-            out_size=hidden_layers[0]["size"],
-            activation_fn=hidden_layers[0]["fn"] or Layer.activation_linear,
-            activation_fn_deriv=hidden_layers[0]["fn_deriv"] or Layer.activation_linear_deriv))
+            out_size=layers[0]["size"],
+            activation_fn=layers[0]["fn"] or Layer.activation_linear,
+            activation_fn_deriv=layers[0]["fn_deriv"] or Layer.activation_linear_deriv))
 
-        if len(hidden_layers) != 0:
-            for cur_layer in hidden_layers[1:-1]:
+        if len(layers) != 0:
+            for cur_layer in layers[1:-1]:
                 self.layers.append(Layer(
                     in_size=self.layers[-1].size,
                     out_size=cur_layer["size"],
@@ -53,7 +53,7 @@ class MLP:
 
         self.layers.append(Layer(
             in_size=self.layers[-1].size,
-            out_size=hidden_layers[-1]["size"],
+            out_size=layers[-1]["size"],
             activation_fn=Layer.activation_linear,
             activation_fn_deriv=Layer.activation_linear_deriv
         ))

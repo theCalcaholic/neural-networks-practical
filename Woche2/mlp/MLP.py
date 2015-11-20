@@ -1,5 +1,6 @@
 import numpy
 from PerceptronLayer import PerceptronLayer as Layer
+from HiddenLayer import HiddenLayer
 
 
 # directory for observing the results
@@ -44,7 +45,7 @@ class MLP:
 
         if len(layers) != 0:
             for cur_layer in layers[1:-1]:
-                self.layers.append(Layer(
+                self.layers.append(HiddenLayer(
                     in_size=self.layers[-1].size,
                     out_size=cur_layer["size"],
                     activation_fn=cur_layer["fn"] or Layer.activation_sigmoid,

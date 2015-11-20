@@ -1,5 +1,4 @@
 import numpy
-from OutputLayer import OutputLayer
 from PerceptronLayer import PerceptronLayer as Layer
 
 

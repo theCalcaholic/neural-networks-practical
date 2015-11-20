@@ -4,12 +4,13 @@ import numpy
 class PerceptronLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
         self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size))
+        self.biases = numpy.zeros(out_size)
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size
 
     def feed(self, data):
-        return self.activation(numpy.dot(self.weights, data))
+        return self.activation(numpy.dot(self.weights, data) + self.biases)
 
     def learn(self, result, delta, learning_rate):
         delta_weights = learning_rate * numpy.outer(delta, result)

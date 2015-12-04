@@ -27,16 +27,15 @@ mlp = MLP(in_size=2,
 
 mlp.configure({
     "learning_rate": 0.02,
-    "target_precision": 0.0,
+    "target_precision": 0.0001,
     "max_iterations": 100000
 })
 
 mlp.train(data_in, data_out)
 
 while True:
-    test_data_str = raw_input("Enter data to be processed by the MLp (comma separated vector of size " +
-                          str(len(data_in[0])) +
-                          ")\n:")
+    test_data_str = raw_input("Enter data to be predicted by the MLp (comma separated vector of size " +
+                          str(len(data_in[0])) + "):\n")
     if not len(test_data_str):
         break
     test_data = [int(x) for x in test_data_str.split(",")]

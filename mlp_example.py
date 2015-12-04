@@ -1,7 +1,7 @@
 import numpy
 
-from neural_network.NeuralLayer import PerceptronLayer as Layer
-from multi_layer_perceptron.MLP import MLP
+from neural_network.NeuralLayer import NeuralLayer as Layer
+from multi_layer_perceptron.MultiLayerPerceptron import MultiLayerPerceptron
 
 data_in = numpy.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 data_out_xor = numpy.array([[0], [1], [1], [0]])
@@ -12,8 +12,8 @@ data_out_or = numpy.array([[0], [1], [1], [1]])
 
 data_out = data_out_xor
 
-mlp = MLP(in_size=2,
-          layers=[
+mlp = MultiLayerPerceptron(in_size=2,
+                           layers=[
               {
                   "size": 3,
                   "fn": Layer.activation_sigmoid,

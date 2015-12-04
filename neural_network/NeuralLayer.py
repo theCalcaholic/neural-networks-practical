@@ -1,7 +1,7 @@
 import numpy
 
 
-class PerceptronLayer(object):
+class NeuralLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
         self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size))
         self.biases = numpy.zeros(out_size)

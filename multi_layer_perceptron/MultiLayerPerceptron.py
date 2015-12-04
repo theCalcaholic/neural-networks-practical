@@ -1,13 +1,13 @@
 import numpy
 
 from HiddenLayer import HiddenLayer
-from neural_network.NeuralLayer import PerceptronLayer as Layer
+from neural_network.NeuralLayer import NeuralLayer as Layer
 
 # directory for observing the results
 path_obs = "res/"
 
 
-class MLP:
+class MultiLayerPerceptron:
 
     """Creates a new instance of class MLP
     @size_in: number of input neurons

@@ -1,7 +1,6 @@
 import numpy
 
-from HiddenLayer import HiddenLayer
-from neural_network.NeuralLayer import NeuralLayer as Layer
+from neural_network.NeuralLayer import NeuralLayer as Layer, BiasedNeuralLayer as BiasedLayer
 
 # directory for observing the results
 path_obs = "res/"
@@ -45,7 +44,7 @@ class MultiLayerPerceptron:
 
         if len(layers) != 0:
             for cur_layer in layers[1:-1]:
-                self.layers.append(HiddenLayer(
+                self.layers.append(BiasedLayer(
                     in_size=self.layers[-1].size,
                     out_size=cur_layer["size"],
                     activation_fn=cur_layer["fn"] or Layer.activation_sigmoid,

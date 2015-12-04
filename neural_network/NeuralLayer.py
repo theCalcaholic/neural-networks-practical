@@ -44,3 +44,9 @@ class NeuralLayer(object):
     @classmethod
     def activation_tanh_deriv(cls, x):
         return 1.0 - numpy.tanh(x)**2
+
+
+class BiasedNeuralLayer(NeuralLayer):
+    def learn(self, result, delta, learning_rate):
+        super(BiasedNeuralLayer, self).learn(result, delta, learning_rate)
+        self.biases = min(0, -(learning_rate * delta) + self.biases)

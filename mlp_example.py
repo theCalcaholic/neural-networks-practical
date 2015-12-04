@@ -1,6 +1,7 @@
 import numpy
-from mlp.MLP import MLP
-from mlp.NeuralLayer import PerceptronLayer as Layer
+
+from neural_network.NeuralLayer import PerceptronLayer as Layer
+from multi_layer_perceptron.MLP import MLP
 
 data_in = numpy.array([[0, 0], [0, 1], [1, 0], [1, 1]])
 data_out_xor = numpy.array([[0], [1], [1], [0]])

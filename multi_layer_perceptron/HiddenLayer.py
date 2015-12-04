@@ -1,4 +1,4 @@
-from NeuralLayer import PerceptronLayer
+from neural_network.NeuralLayer import PerceptronLayer
 
 
 class HiddenLayer(PerceptronLayer):

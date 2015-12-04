@@ -1,7 +1,7 @@
 import numpy
-from NeuralLayer import PerceptronLayer as Layer
-from HiddenLayer import HiddenLayer
 
+from HiddenLayer import HiddenLayer
+from neural_network.NeuralLayer import PerceptronLayer as Layer
 
 # directory for observing the results
 path_obs = "res/"

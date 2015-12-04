@@ -1,0 +1,2 @@
+class LSTMNetwork:
+    pass

@@ -1,5 +1,5 @@
 import numpy
-from PerceptronLayer import PerceptronLayer as Layer
+from NeuralLayer import PerceptronLayer as Layer
 from HiddenLayer import HiddenLayer
 
 

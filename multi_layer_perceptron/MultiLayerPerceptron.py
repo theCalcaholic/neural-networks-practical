@@ -36,11 +36,11 @@ class MultiLayerPerceptron:
                  layers=None):
         layers = layers or self.layers_specs or []
         self.layers = []
-        self.layers.append(Layer(
+        self.layers.append(BiasedLayer(
             in_size=in_size,
             out_size=layers[0]["size"],
-            activation_fn=layers[0]["fn"] or Layer.activation_linear,
-            activation_fn_deriv=layers[0]["fn_deriv"] or Layer.activation_linear_deriv))
+            activation_fn=layers[0]["fn"] or Layer.activation_sigmoid,
+            activation_fn_deriv=layers[0]["fn_deriv"] or Layer.activation_sigmoid_deriv))
 
         if len(layers) != 0:
             for cur_layer in layers[1:-1]:
@@ -54,8 +54,7 @@ class MultiLayerPerceptron:
             in_size=self.layers[-1].size,
             out_size=layers[-1]["size"],
             activation_fn=Layer.activation_linear,
-            activation_fn_deriv=Layer.activation_linear_deriv
-        ))
+            activation_fn_deriv=Layer.activation_linear_deriv))
         self.populated = True
 
     """applies the MLP network to a set of input data and returns a list of the outputs of each perceptron layer"""
@@ -103,9 +102,6 @@ class MultiLayerPerceptron:
         for result, delta, layer in zip(results[:-1], reversed(deltas), self.layers):
             layer.learn(result, delta, self.config["learning_rate"])
 
-        #self.bias_1 = min(0, -(learning_rate * delta1) + self.bias_1)
-        #self.bias_2 = min(0, -(learning_rate * delta2) + self.bias_2)
-
         # returns the absolute error (distance of target output and actual output)
         return error
 
@@ -121,11 +117,14 @@ class MultiLayerPerceptron:
             for j in range(0, numpy.shape(t_input)[0]):
                 errors.append(self.backpropagate(self.feedforward(t_input[j]), t_output[j]))
             error = sum(errors) / float(len(errors))
-            if error < self.config["target_precision"]:
-                self.trained = True
-                return
+
             if not i % 100:
                 print "Error: ", error, "\n"
+
+            if error < self.config["target_precision"]:
+                self.trained = True
+                print "Target error reached: ", str(error), " < " + str(self.config["target_precision"]) + "\n"
+                return
         self.trained = True
 
     """Returns predicted output vector for a given input vector data_in"""

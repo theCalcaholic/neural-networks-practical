@@ -8,6 +8,7 @@ class NeuralLayer(object):
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size
+        self.last_output = numpy.atleast_1d(numpy.array([]))
 
     def feed(self, data):
         return self.activation(numpy.dot(self.weights, data) + self.biases)
@@ -49,4 +50,4 @@ class NeuralLayer(object):
 class BiasedNeuralLayer(NeuralLayer):
     def learn(self, result, delta, learning_rate):
         super(BiasedNeuralLayer, self).learn(result, delta, learning_rate)
-        self.biases = min(0, -(learning_rate * delta) + self.biases)
+        self.biases += learning_rate * delta

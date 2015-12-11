@@ -36,12 +36,11 @@ class LSTMNetwork:
         results = [data]
         for layer in self.layers[:-1]:
             results.append(
-                layer.feed(np.concatenate((results[-1], layer.last_output)))
+                layer.feed(results[-1])
             )
         results.append(
             self.layers[-1].feed(results[-1].T)
         )
-
 
         return results
 
@@ -50,6 +49,7 @@ lstm = LSTMNetwork()
 
 lstm.populate(1, [2, 1])
 
+print("result: " + str(lstm.feedforward(np.array([1]))))
 print("result: " + str(lstm.feedforward(np.array([1]))))
     #,
     #np.array([0]),

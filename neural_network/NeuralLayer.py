@@ -8,7 +8,6 @@ class NeuralLayer(object):
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size
-        self.last_output = numpy.atleast_1d(numpy.array([]))
 
     def feed(self, data):
         return self.activation(numpy.dot(self.weights, data) + self.biases)

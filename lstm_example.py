@@ -21,7 +21,7 @@ lstm = LSTMNetwork()
 
 lstm.populate(char_set, layer_sizes=[hidden_size])
 
-lstm.train(input_data)
+lstm.train(input_data, 15)
 
 #print("result: " + str(lstm.feedforward(np.array([1]))))
 #print("result: " + str(lstm.feedforward(np.array([1]))))

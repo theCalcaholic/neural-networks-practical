@@ -10,13 +10,18 @@ class NeuralLayer(object):
         self.size = out_size
 
     def feed(self, data):
-        return self.activation(numpy.dot(self.weights, data) + self.biases)
+        #print("weights shape: " + str(numpy.shape(self.weights)) + " - data shape: " + str(numpy.shape(data)) + " - bias shape: " + str(numpy.shape(self.biases)))
+        return self.activation(numpy.dot(self.weights, data) + numpy.atleast_2d(self.biases).T)
+
+    def reverse_feed(self, data):
+        return self.activation(numpy.dot(data - numpy.atleast_2d(self.biases), self.weights))
 
     def learn(self, result, delta, learning_rate):
         delta_weights = learning_rate * numpy.outer(delta, result)
         self.weights += delta_weights
 
     def get_delta(self, result, last_delta, last_weights):
+        print("delta shape: " + str(numpy.shape(last_delta)) + " - result shape: " + str(numpy.shape(result)) + " - weights shape: " + str(numpy.shape(self.weights)))
         last_weights = numpy.atleast_2d(last_weights)
         return numpy.dot(last_delta, last_weights) * self.activation_deriv(result)
 

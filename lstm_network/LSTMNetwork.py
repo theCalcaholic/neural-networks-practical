@@ -1,6 +1,6 @@
 import numpy as np
 from LSTMLayer import LSTMLayer
-from ..neural_network.NeuralLayer import NeuralLayer as Layer
+from neural_network.NeuralLayer import NeuralLayer as Layer
 
 
 class LSTMNetwork:
@@ -39,29 +39,35 @@ class LSTMNetwork:
             out_size=len(self.chars),
             activation_fn=Layer.activation_linear,
             activation_fn_deriv=Layer.activation_linear_deriv))
+        self.layers[-1].weights.fill(1.0)
+        print("last layer shape: " + str(np.shape(self.layers[-1].weights)))
         self.populated = True
 
     def feedforward(self, inputs):
         if not self.populated:
             raise Exception("LSTM network must be populated first (Have a look at method LSTMNetwork.populate)!")
 
-        states, results, enc_inputs, enc_outputs = {}, {}, {}, {}
-        states[-1] = [layer.state for layer in self.layers[:-1]]  # get initial state of all lstm layers
-        for i in xrange(len(inputs)):
-            enc_inputs[i] = np.zeros((len(self.chars), 1))  # encode character in 1-of-k representation
-            enc_inputs[i][i] = 1
-            results[i][-1] = [inputs[i]]
+        results, enc_inputs, enc_outputs = [], {}, {}
+        # get initial state of all lstm layers
+        for t in xrange(len(inputs)):
+            # encode character in 1-of-k representation
+            enc_inputs[t] = np.zeros((len(self.chars), 1))
+            enc_inputs[t][inputs[t]] = 1
+            results.append([enc_inputs[t]])
 
             # feed forward through all layers
-            for j in xrange(len(self.layers) - 1):
-                results[i][j] = self.layers[j].feed(results[i][j-1]) # get output of each lstm layer
-            results[i][len(self.layers)] = self.layers[-1].feed(results[len(self.layers) - 1].T)  # add output of lstm network to results
-            states[i] = [layer.state for layer in self.layers[:-1]] # get updated state from all lstm layers
+            for l in xrange(len(self.layers)-1):
+                # get output of each lstm layer
+                results[t].append(self.layers[l].feed(results[t][-1]))
+            # add output of lstm network to results
+            #print("result shape: " + str(np.shape(results[t][-1])))
+            results[t].append(self.layers[-1].feed(results[t][-1]))
+            # get updated state from all lstm layers
 
-        return results, states
+        return results
 
-    def backpropagate(self, inputs, targets, results, states):
-        deltas = [np.zeros_like(layer.weights) for layer in self.layers]
+    def backpropagate(self, results, target):
+        """deltas = [np.zeros_like(layer.weights) for layer in self.layers]
         deltas.append(0)
         delta_state_next = np.zeros_like(states[0])
         for i in reversed(xrange(len(inputs))):
@@ -77,20 +83,30 @@ class LSTMNetwork:
                         deltas[-j-1],
                         self.layers.weights[-j-1]
                     )
-                )
-
+                )"""
+        #print("results shape: " + str(np.shape(results[-1][-1])))
+        enc_target = np.zeros((len(self.chars), 1))
+        enc_target[target] = 1
+        delta = self.layers[-1].reverse_feed(enc_target.T)
+        print("enc_target shape: " + str(np.shape(enc_target.T)) + " - delta shape: " + str(np.shape(delta.T))
+              + " - weights shape: " + str(np.shape(self.layers[-1].weights))
+              + " - biases shape: " + str(np.shape(np.atleast_2d(self.layers[-1].biases))))
+        self.layers[-2].learn(delta.T)
 
     def train(self, t_input, seq_length):
-        p = 0
-        smooth_loss = -np.log(1.0/len(self.chars)) * seq_length
-        while True:
-            inputs = [self.char_to_int[ch] for ch in t_input[p:p+seq_length]]
-            targets = [self.char_to_int[ch] for ch in t_input[1+p:1+p+seq_length]]
-            enc_inputs, enc_outputs = {}
-
-            for i in xrange(len(inputs)):
-                enc_inputs[i] = np.zeros((len(self.chars), 1))
-                enc_inputs[i][inputs[i]] = 1
+        for i in range(100):
+            p = 0
+            while p < len(t_input):
+                if p + seq_length < len(t_input) - 1:
+                    inputs = [self.char_to_int[ch] for ch in t_input[p:p+seq_length]]
+                    target = self.char_to_int[t_input[p + seq_length + 1]]
+                else:
+                    inputs = [self.char_to_int[ch] for ch in t_input[p:-2]]
+                    target = self.char_to_int[t_input[-1]]
+                output = self.feedforward(inputs)
+                self.backpropagate(output, target)
+                p += seq_length
+                print("Iteration " + self.int_to_char[i])
 
 
 

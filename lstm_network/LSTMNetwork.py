@@ -1,6 +1,6 @@
 import numpy as np
 from LSTMLayer import LSTMLayer
-from neural_network.NeuralLayer import NeuralLayer as Layer
+from ..neural_network.NeuralLayer import NeuralLayer as Layer
 
 
 class LSTMNetwork:

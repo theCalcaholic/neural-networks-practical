@@ -1,5 +1,5 @@
 import numpy as np
-from neural_network.NeuralLayer import \
+from ..neural_network.NeuralLayer import \
     NeuralLayer as Layer, \
     BiasedNeuralLayer as BiasedLayer
 

@@ -32,10 +32,13 @@ class LSTMLayer(object):
         self.in_size = in_size
         self.learning_rate = 0.001
 
-    def feed(self, input_data):
-        self.cache.append(LSTMLayerCache(self.size))
+    def feed(self, input_data, caching_depth=1):
+        assert caching_depth > 0, "caching_depth must be at least 1 (for recursive input)!"
         ##print("ff input shape: " + str(np.shape(input_data)) + " - last output shape: " + str(np.shape(self.cache[-1].output_values)))
         data = np.concatenate([input_data, self.cache[-1].output_values])
+        if caching_depth <= len(self.cache):
+            self.cache.pop(0)
+        self.cache.append(LSTMLayerCache(self.size))
         self.cache[-1].input_values = input_data
         self.cache[-1].input_concat = data
         # update forget gate

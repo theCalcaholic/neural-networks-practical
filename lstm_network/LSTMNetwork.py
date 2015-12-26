@@ -34,13 +34,13 @@ class LSTMNetwork:
                 self.layers.append(LSTMLayer(
                     in_size=self.layers[-1].size,
                     out_size=cur_size))
-        self.layers.append(Layer(
+        """self.layers.append(Layer(
             in_size=self.layers[-1].size,
             out_size=len(self.chars),
             activation_fn=Layer.activation_linear,
             activation_fn_deriv=Layer.activation_linear_deriv))
         self.layers[-1].weights.fill(1.0)
-        print("last layer shape: " + str(np.shape(self.layers[-1].weights)))
+        print("last layer shape: " + str(np.shape(self.layers[-1].weights)))"""
         self.populated = True
 
     def feedforward(self, inputs):
@@ -59,9 +59,6 @@ class LSTMNetwork:
             for l in xrange(len(self.layers)-1):
                 # get output of each lstm layer
                 results[t].append(self.layers[l].feed(results[t][-1]))
-            # add output of lstm network to results
-            #print("result shape: " + str(np.shape(results[t][-1])))
-            results[t].append(self.layers[-1].feed(results[t][-1]))
             # get updated state from all lstm layers
 
         return results
@@ -85,13 +82,12 @@ class LSTMNetwork:
                     )
                 )"""
         #print("results shape: " + str(np.shape(results[-1][-1])))
-        enc_target = np.zeros((len(self.chars), 1))
-        enc_target[target] = 1
-        delta = self.layers[-1].reverse_feed(enc_target.T)
-        print("enc_target shape: " + str(np.shape(enc_target.T)) + " - delta shape: " + str(np.shape(delta.T))
+        enc_target = self.encode(target)
+        delta = enc_target - results[-1]
+        """print("enc_target shape: " + str(np.shape(enc_target.T)) + " - delta shape: " + str(np.shape(delta.T))
               + " - weights shape: " + str(np.shape(self.layers[-1].weights))
-              + " - biases shape: " + str(np.shape(np.atleast_2d(self.layers[-1].biases))))
-        self.layers[-2].learn(delta.T)
+              + " - biases shape: " + str(np.shape(np.atleast_2d(self.layers[-1].biases))))"""
+        self.layers[-1].learn(delta.T)
 
     def train(self, t_input, seq_length):
         for i in range(100):
@@ -108,5 +104,14 @@ class LSTMNetwork:
                 p += seq_length
                 print("Iteration " + self.int_to_char[i])
 
+    def encode(self, input):
+        result = np.zeros(len(self.chars))
+        result[input] = 1
+        return result
+
+    def decode(self, output):
+        for index, value in enumerate(output):
+            if value == 1:
+                return index
 
 

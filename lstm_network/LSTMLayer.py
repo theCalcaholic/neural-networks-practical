@@ -64,7 +64,49 @@ class LSTMLayer(object):
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
         return self.cache[-1].output_values
 
+    def learn_step(self, loss, last_loss):
+        # calculate loss and cumulative loss but keep loss for t+1 (last loss)
+
+        cumul_loss = last_loss + loss
+
+        delta_state = self.caches[-1].output_gate_results * cumul_loss + last_loss
+        delta_output_gate = self.output_gate_layer.activation_deriv(
+            self.caches[-1].state * cumul_loss)
+        delta_input_gate = self.input_gate_layer.activation_deriv(
+            self.caches[-1].update_values_layer_results * delta_state)
+        delta_update_values_layer = self.update_values_layer.activation_deriv(
+            self.caches[-1].input_gate_results * delta_state)
+        delta_forget_gate = self.forget_gate_layer.activation_deriv(
+            self.caches[-2].state * delta_state)
+
+        concat_in = self.caches[-1].concat_input
+
+        self.pending_updates.input_gate_weights += \
+            np.outer(delta_input_gate, concat_in)
+        self.pending_updates.forget_gate_weights += \
+            np.outer(delta_forget_gate, concat_in)
+        self.pending_updates.output_gate_weights += \
+            np.outer(delta_output_gate, concat_in)
+        self.pending_updates.update_values_layer_weigts += \
+            np.outer(delta_update_values_layer, concat_in)
+
+        self.pending_updates.input_gate_biases += delta_input_gate
+        self.pending_updates.forget_gate_biases += delta_forget_gate
+        self.pending_updates.output_gate_biases += delta_output_gate
+        self.pending_updates.update_values_layer_biases += delta_update_values_layer
+
+        #TODO: compute bottom diff?
+
+
+
     def learn(self, target_output):
+        loss = self.loss_function(self.caches[-1].output, target_output)
+        self.learn_step(loss, 0)
+
+    def depr_learn(self, target_output):
+        self.naive_learn(target_output)
+
+    """def learn(self, target_output):
         print("output_values shape: " + str(np.shape(self.cache[-1].output_values)) + " - target shape: " + str(np.shape(target_output)))
         incremental_error = LSTMLayer.get_error(self.cache[-1].output_values, target_output)
         output_error = LSTMLayer.get_output_error(self.cache[-1].output_values, target_output)
@@ -84,10 +126,22 @@ class LSTMLayer(object):
             delta_update_layer_act = (1. - cache.update_values ** 2) * delta_update_layer
 
             # update pending deltas
-            print("delta_input_gate_act shape: " + str(np.shape(delta_input_gate_act)) + " - input_concat shape: " + str(np.shape(cache.input_concat)))
-            test = np.outer(delta_input_gate_act, cache.input_concat)
-            print("test shape: " + str(np.shape(test)))
-            self.deltas.input_gate_weights += test
+            #self.deltas.input_gate_weights += np.outer(delta_input_gate_act, cache.input_concat)
+            self.deltas.input_gate_weights += np.outer(
+                self.input_gate_layer.activation_deriv(cache.input_gate)
+                    * cache.update_values * (cache.output_gate * output_error + state_error),
+                cache.input_concat
+            )
+
+            # naive backprop
+            delta_output_gate = np.outer(
+                self.output_gate_layer.activation_deriv(cache.output_gate) * cache.state * output_error,
+                cache.input_concat)
+            delta_state...
+            delta_update_values = np.outer(
+                self.update_values_layer.activation_deriv(cache.update_values) * cache.input_gate * delta_state,
+                cache.input_concat)
+
             self.deltas.forget_gate_weights += np.outer(delta_forget_gate_act, cache.input_concat)
             self.deltas.output_gate_weights += np.outer(delta_output_gate_act, cache.input_concat)
             self.deltas.update_values_weights += np.outer(delta_update_layer_act, cache.input_concat)
@@ -112,7 +166,7 @@ class LSTMLayer(object):
             state_error = difference_state
 
         self.apply_deltas()
-        return incremental_error
+        return incremental_error"""
 
     def apply_deltas(self):
         self.update_values_layer.weights -= self.learning_rate * self.deltas.update_values_weights

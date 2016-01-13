@@ -2,6 +2,7 @@ import numpy as np
 from ..neural_network.NeuralLayer import \
     NeuralLayer as Layer, \
     BiasedNeuralLayer as BiasedLayer
+from LSTMLayerCacheList import LSTMLayerCache
 
 
 class LSTMLayer(object):
@@ -26,60 +27,75 @@ class LSTMLayer(object):
             out_size=out_size,  # size of state
             activation_fn=Layer.activation_sigmoid,
             activation_fn_deriv=Layer.activation_sigmoid_deriv)
-        self.cache = [LSTMLayerCache(out_size)]
-        self.deltas = LSTMLayerDeltas(out_size, in_size + out_size)
+        self.caches = []
+        self.pending_updates = LSTMLayerPendingUpdates(out_size, in_size + out_size)
         self.size = out_size
         self.in_size = in_size
         self.learning_rate = 0.001
+        self.loss_function = LSTMLayer.euclidean_loss_function
+
+        self.first_cache = LSTMLayerCache()
+        self.last_cache = LSTMLayerCache()
+        self.first_cache.state = np.zeros((self.size, 1))
 
     def feed(self, input_data, caching_depth=1):
         assert caching_depth > 0, "caching_depth must be at least 1 (for recursive input)!"
         ##print("ff input shape: " + str(np.shape(input_data)) + " - last output shape: " + str(np.shape(self.cache[-1].output_values)))
-        data = np.concatenate([input_data, self.cache[-1].output_values])
-        if caching_depth <= len(self.cache):
-            self.cache.pop(0)
-        self.cache.append(LSTMLayerCache(self.size))
-        self.cache[-1].input_values = input_data
-        self.cache[-1].input_concat = data
+        data = np.concatenate([input_data, self.caches[-1].output_values])
+        if caching_depth <= len(self.caches):
+            self.caches.pop(0)
+        self.caches.append(LSTMLayerCache())
+        cache = self.caches[-1]
+        if len(self.caches) == 1:
+            cache.predecessor = self.first_cache
+        else:
+            self.caches[-2].successor = cache
+            cache.predecessor = self.caches[-2]
+
+        cache.input_values = input_data
+        cache.concatenated_input = data
         # update forget gate
-        self.cache[-1].forget_gate = self.forget_gate_layer.feed(data)
-        self.cache[-1].input_gate = self.input_gate_layer.feed(data)
-        self.cache[-1].update_values = self.update_values_layer.feed(data)
-        self.cache[-1].output_gate = self.output_gate_layer.feed(data)
+        cache.forget_gate_results = self.forget_gate_layer.feed(data)
+        cache.input_gate_results = self.input_gate_layer.feed(data)
+        cache.update_values_layer_results = self.update_values_layer.feed(data)
+        cache.output_gate_results = self.output_gate_layer.feed(data)
         # calculate state update values
         ##print("ff update values shape: " + str(np.shape(self.cache[-1].update_values)) + " - input gate shape: " + str(np.shape(self.cache[-1].input_gate)))
-        self.cache[-1].update_values = np.multiply(
-            self.cache[-1].input_gate,
-            self.cache[-1].update_values)
-        # apply forget layer
+        update_values = np.multiply(
+            cache.input_gate,
+            cache.update_values_layer_results)
+        # apply forget layer and apply state update values
         ##print("ff forget gate: " + str(self.cache[-1].forget_gate))
-        self.cache[-1].state = self.cache[-1].state * self.cache[-1].forget_gate
+        cache.state = cache.predecessor.state * self.caches[-1].forget_gate\
+                      + update_values
         ##print("ff forgotten state shape: " + str(np.shape(self.cache[-1].state)))
-        # apply state update values
-        self.cache[-1].state = self.cache[-1].state + self.cache[-1].update_values
         ##print("ff updated state shape: " + str(np.shape(self.cache[-1].state)))
         ##print("ff output values shape: " + str(np.shape(self.cache[-1].output_gate)))
         # calculate output from new state and output gate
-        self.cache[-1].output_values = Layer.activation_tanh(self.cache[-1].state) * self.cache[-1].output_gate
+        cache.output_values = Layer.activation_tanh(cache.state) * cache.output_gate
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
-        return self.cache[-1].output_values
+        return cache.output_values
 
-    def learn_step(self, loss, last_loss):
+    def learn_recursive(self, cache, target_outputs, loss_total=0):
+        if cache is None:
+            return loss_total
         # calculate loss and cumulative loss but keep loss for t+1 (last loss)
+        loss_total += self.loss_function(cache.output_values, target_outputs.pop())
+        loss_output = 2 * (cache.output_values - target_outputs.pop())
+        loss_output += cache.successor.loss_output
+        last_loss_state = cache.successor.loss_state
 
-        cumul_loss = last_loss + loss
-
-        delta_state = self.caches[-1].output_gate_results * cumul_loss + last_loss
+        delta_state = cache.output_gate_results * loss_output + last_loss_state
         delta_output_gate = self.output_gate_layer.activation_deriv(
-            self.caches[-1].state * cumul_loss)
+            cache.output_gate_results) * cache.state * loss_output
         delta_input_gate = self.input_gate_layer.activation_deriv(
-            self.caches[-1].update_values_layer_results * delta_state)
+            cache.input_gate_results) * cache.update_values_layer_results * delta_state
         delta_update_values_layer = self.update_values_layer.activation_deriv(
-            self.caches[-1].input_gate_results * delta_state)
+            cache.update_values_layer_results) * cache.input_gate_results * delta_state
         delta_forget_gate = self.forget_gate_layer.activation_deriv(
-            self.caches[-2].state * delta_state)
+            cache.forget_gate_results) * cache.predecessor.state * delta_state
 
-        concat_in = self.caches[-1].concat_input
+        concat_in = cache.concatinated_input
 
         self.pending_updates.input_gate_weights += \
             np.outer(delta_input_gate, concat_in)
@@ -87,7 +103,7 @@ class LSTMLayer(object):
             np.outer(delta_forget_gate, concat_in)
         self.pending_updates.output_gate_weights += \
             np.outer(delta_output_gate, concat_in)
-        self.pending_updates.update_values_layer_weigts += \
+        self.pending_updates.update_values_layer_weights += \
             np.outer(delta_update_values_layer, concat_in)
 
         self.pending_updates.input_gate_biases += delta_input_gate
@@ -96,15 +112,26 @@ class LSTMLayer(object):
         self.pending_updates.update_values_layer_biases += delta_update_values_layer
 
         #TODO: compute bottom diff?
+        delta_concatinated_input = np.zeros_like(concat_in) \
+            + np.dot(self.input_gate_layer.weights.T, delta_input_gate)\
+            + np.dot(self.forget_gate_layer.weights.T, delta_forget_gate)\
+            + np.dot(self.output_gate_layer.weights.T, delta_output_gate)\
+            + np.dot(self.update_values_layer.weights.T, delta_update_values_layer)
 
+        cache.loss_state = delta_state * cache.forget_gate_results
+        cache.loss_input = delta_concatinated_input[:self.in_size]
+        cache.loss_output = delta_concatinated_input[self.in_size:]
 
+        return self.learn_recursive(cache.predecessor, target_outputs, loss_total)
 
-    def learn(self, target_output):
-        loss = self.loss_function(self.caches[-1].output, target_output)
-        self.learn_step(loss, 0)
+    def learn(self, target_outputs):
+        self.caches[-1].successor = self.last_cache
+        loss = self.learn_recursive(self.caches[-1], target_outputs)
+        self.apply_training()
+        return loss
 
-    def depr_learn(self, target_output):
-        self.naive_learn(target_output)
+    """def depr_learn(self, target_output):
+        self.naive_learn(target_output)"""
 
     """def learn(self, target_output):
         print("output_values shape: " + str(np.shape(self.cache[-1].output_values)) + " - target shape: " + str(np.shape(target_output)))
@@ -168,16 +195,14 @@ class LSTMLayer(object):
         self.apply_deltas()
         return incremental_error"""
 
-    def apply_deltas(self):
-        self.update_values_layer.weights -= self.learning_rate * self.deltas.update_values_weights
-        self.input_gate_layer.weights -= self.learning_rate * self.deltas.input_gate_weights
-        self.forget_gate_layer.weights -= self.learning_rate * self.deltas.forget_gate_weights
-        self.output_gate_layer.weights -= self.learning_rate * self.deltas.output_gate_weights
-        self.update_values_layer.biases -= self.learning_rate * self.deltas.update_values_biases
-        self.input_gate_layer.biases -= self.learning_rate * self.deltas.input_gate_biases
-        self.forget_gate_layer.biases -= self.learning_rate * self.deltas.forget_gate_biases
-        self.output_gate_layer.biases -= self.learning_rate * self.deltas.output_gate_biases
-        self.deltas = LSTMLayerDeltas()
+    def apply_training(self):
+        p_updates = self.pending_updates
+        lr = self.learning_rate
+        self.forget_gate_layer.weights += lr * p_updates.forget_gate_weights
+        self.input_gate_layer.weights += lr * p_updates.input_gate_weights
+        self.update_values_layer.weights += lr * p_updates.update_values_layer_weights
+        self.output_gate_layer.weights += lr * p_updates.output_gate_weights
+        p_updates.reset()
 
     @classmethod
     def get_output_error(cls, prediction, target):
@@ -187,29 +212,22 @@ class LSTMLayer(object):
         return difference
 
     @classmethod
-    def get_error(cls, prediction, target):
-        return (prediction - target) ** 2
+    def euclidean_loss_function(cls, predicted, target):
+        return (predicted - target) ** 2
 
 
-class LSTMLayerCache(object):
-    def __init__(self, out_size):
-        self.update_values = np.zeros((out_size, 1))
-        self.input_gate = np.zeros(out_size)
-        self.forget_gate = np.zeros(out_size)
-        self.output_gate = np.zeros(out_size)
-        self.state = np.zeros((out_size, 1))
-        self.output_values = np.zeros((out_size, 1))
-        self.input_values = None
-        self.input_concat = None
-
-
-class LSTMLayerDeltas(object):
+class LSTMLayerPendingUpdates(object):
     def __init__(self, in_size, out_size):
-        self.update_values_weights = np.zeros((out_size, in_size + out_size))
+        self.update_values_layer_weights = np.zeros((out_size, in_size + out_size))
         self.input_gate_weights = np.zeros((out_size, in_size + out_size))
         self.forget_gate_weights = np.zeros((out_size, in_size + out_size))
         self.output_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.update_values_biases = np.zeros(out_size)
+        self.update_values_layer_biases = np.zeros(out_size)
         self.input_gate_biases = np.zeros(out_size)
         self.forget_gate_biases = np.zeros(out_size)
         self.output_gate_biases = np.zeros(out_size)
+        self.in_size = in_size
+        self.out_size = out_size
+
+    def reset(self):
+        self.__init__(self.in_size, self.out_size)

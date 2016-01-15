@@ -1,5 +1,4 @@
 from NeuralLayer import NeuralLayer, BiasedNeuralLayer
-from LayerCache import LayerCache
 import numpy as np
 
 
@@ -12,7 +11,6 @@ class ElmanHiddenLayer(BiasedNeuralLayer):
         self.successors = {'output': None, 'context': None}
         self.predecessors = predecessors
         self.successors = successors
-        self.cache
         self.in_size = in_size
         self.size = out_size
         self.context_layer = BiasedNeuralLayer(

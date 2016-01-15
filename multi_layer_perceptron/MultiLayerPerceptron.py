@@ -1,7 +1,6 @@
 import numpy
 
 from neural_network.NeuralLayer import NeuralLayer as Layer, BiasedNeuralLayer as BiasedLayer
-from neural_network.ElmanHiddenLayer import ElmanHiddenLayer
 
 # directory for observing the results
 path_obs = "res/"
@@ -40,35 +39,37 @@ class MultiLayerPerceptron:
         self.layers.append(Layer(
             in_size=in_size,
             out_size=layers[0]["size"],
-            predecessor=None,
-            successor=None,
             activation_fn=layers[0]["fn"] or Layer.activation_linear,
             activation_fn_deriv=layers[0]["fn_deriv"] or Layer.activation_linear_deriv))
 
         if len(layers) != 0:
             for cur_layer in layers[1:-1]:
-                self.layers[-1].add_successor(ElmanHiddenLayer(
+                self.layers.append(BiasedLayer(
                     in_size=self.layers[-1].size,
                     out_size=cur_layer["size"],
-                    predecessors=[self.layers[-1]],
                     activation_fn=cur_layer["fn"] or Layer.activation_sigmoid,
                     activation_fn_deriv=cur_layer["fn_deriv"] or Layer.activation_sigmoid_deriv))
-                self.layers.append(self.layers[-1].successor)
 
-        self.layers[-1].add_successor(Layer(
+        self.layers.append(Layer(
             in_size=self.layers[-1].size,
             out_size=layers[-1]["size"],
             activation_fn=Layer.activation_linear,
-            activation_fn_deriv=Layer.activation_linear_deriv))
-        self.layers.append(self.layers[-1].successor)
+            activation_fn_deriv=Layer.activation_linear_deriv
+        ))
         self.populated = True
 
+    """applies the MLP network to a set of input data and returns a list of the outputs of each perceptron layer"""
     def feedforward(self, data):
-        """applies the MLP network to a set of input data and returns a list of the outputs of each perceptron layer"""
         if not self.populated:
             raise Exception("MLP must be populated first (Have a look at method MLP.populate())!")
 
-        return self.layers[0].feed(data)
+        results = [data]
+        for layer in self.layers:
+            results.append(
+                layer.feed(results[-1])
+            )
+
+        return results
 
     """calculates and applies the change in weight according to the error resulting from feedforward and the
     learning rate provided
@@ -76,7 +77,7 @@ class MultiLayerPerceptron:
     @results: An array of layer wise results (as produced by feedforward)
     @target_output: A vector of output values to be used as training reference
     @learning_rate: Influences the performance (the higher the better) and accuracy (the lower the better)"""
-    def backpropagate(self, target_outputs):
+    def backpropagate(self, results, target_output):
         if not self.populated:
             raise Exception("MLP must be populated first (Have a look at method MLP.populate())!")
 

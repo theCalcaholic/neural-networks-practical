@@ -12,16 +12,28 @@ input_data = "123123123123123123123123123123123123123123123123123123123123123123
     + "123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123"\
     + "123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123"\
     + "123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123123"
-hidden_size = 100
+hidden_size = 3
 sequence_length = 25  # 'length' of memory
 learning_rate = 1e-1
-char_set = set(input_data)
+data_set = set(input_data)
+
+data_to_int = {dat: i for i, dat in enumerate(data_set)}
+int_to_data = {i: dat for i, dat in enumerate(data_set)}
+
+encoded_data = []
+for t in xrange(2):#len(input_data)):
+    # encode character in 1-of-k representation
+    input_int = data_to_int[input_data[t]]
+    encoded_data.append(np.zeros((len(data_set), 1)))
+    encoded_data[-1][t] = 1
 
 lstm = LSTMNetwork()
+lstm.int_to_data = int_to_data
 
-lstm.populate(char_set, layer_sizes=[hidden_size])
+lstm.populate(data_set, layer_sizes=[hidden_size])
 
-lstm.train(input_data, 15)
+lstm.train(encoded_data, 3)
+
 
 #print("result: " + str(lstm.feedforward(np.array([1]))))
 #print("result: " + str(lstm.feedforward(np.array([1]))))

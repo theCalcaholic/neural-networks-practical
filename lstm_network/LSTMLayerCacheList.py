@@ -146,4 +146,6 @@ class LSTMLayerCache(object):
         # list implementation stuff
         self.predecessor = None
         self.successor = None
+        self.is_first_cache = False
+        self.is_last_cache = False
 

@@ -1,4 +1,5 @@
 import numpy
+from lstm_network.utils import debug
 
 
 class NeuralLayer(object):
@@ -21,7 +22,7 @@ class NeuralLayer(object):
         self.weights += delta_weights
 
     def get_delta(self, result, last_delta, last_weights):
-        print("delta shape: " + str(numpy.shape(last_delta)) + " - result shape: " + str(numpy.shape(result)) + " - weights shape: " + str(numpy.shape(self.weights)))
+        debug("delta shape: " + str(numpy.shape(last_delta)) + " - result shape: " + str(numpy.shape(result)) + " - weights shape: " + str(numpy.shape(self.weights)))
         last_weights = numpy.atleast_2d(last_weights)
         return numpy.dot(last_delta, last_weights) * self.activation_deriv(result)
 
@@ -40,7 +41,7 @@ class NeuralLayer(object):
 
     @classmethod
     def activation_sigmoid_deriv(cls, x):
-        return x * (1 - x)
+        return (1. - x) * x
 
     @classmethod
     def activation_tanh(cls, x):
@@ -48,7 +49,7 @@ class NeuralLayer(object):
 
     @classmethod
     def activation_tanh_deriv(cls, x):
-        return 1.0 - numpy.tanh(x)**2
+        return 1.0 - x ** 2
 
 
 class BiasedNeuralLayer(NeuralLayer):

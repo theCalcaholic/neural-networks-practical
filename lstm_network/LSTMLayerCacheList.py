@@ -149,3 +149,19 @@ class LSTMLayerCache(object):
         self.is_first_cache = False
         self.is_last_cache = False
 
+        self.output_layer_results = None
+
+    def insert_before(self, cache):
+        cache.predecessor = self.predecessor
+        cache.successor = self
+        self.predecessor.successor = cache
+        self.predecessor = cache
+
+    def insert_after(self, cache):
+        cache.successor = self.successor
+        cache.predecessor = self
+        self.successor = cache
+
+    def remove(self):
+        self.predecessor.successor = self.successor
+        self.successor.predecessor = self.predecessor

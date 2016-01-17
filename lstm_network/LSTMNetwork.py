@@ -1,7 +1,8 @@
 import numpy as np
 from LSTMLayer import LSTMLayer
-from neural_network.NeuralLayer import NeuralLayer as Layer
-from utils import decode
+from utils import decode, decode_sequence
+import math
+
 
 class LSTMNetwork:
 
@@ -14,6 +15,7 @@ class LSTMNetwork:
         self.int_to_data = None
         self.state_history = None
         self.learning_rate = 0.001
+        self.verbose = True
 
     def populate(self, char_set, layer_sizes=None):
         layer_sizes = layer_sizes or self.layers_spec or []
@@ -57,12 +59,12 @@ class LSTMNetwork:
         if not self.populated:
             raise Exception("LSTM network must be populated first (Have a look at method LSTMNetwork.populate)!")
 
-        outputs = None
+        outputs = []
         # get initial state of all lstm layers
         for t in xrange(len(inputs)):
             # feed forward through all layers
             # get output of lstm network
-            outputs = self.lstm_layer.feed(inputs[t], caching_depth)
+            outputs.append(self.lstm_layer.feed(inputs[t], caching_depth))
             # get updated state from all lstm layers
 
         return outputs
@@ -73,29 +75,42 @@ class LSTMNetwork:
         )
         return self.lstm_layer.learn(targets_list)
 
-    def train(self, inputs_list, seq_length, iterations=100, learning_rate=0.001):
+    def train(self, inputs_list, seq_length, iterations=100, learning_rate=0.1):
         #print("inputs_list: " + str(inputs_list))
-        output_strings = "          "
+        loss = 1.0
+        loss_diff = 0
+        limit = 50
         for i in xrange(iterations):
             pos = 0
-            while pos < len(inputs_list):
-                if pos + seq_length < len(inputs_list) - 1:
-                    inputs = inputs_list[pos: pos + seq_length]
-                    targets = inputs_list[pos + 1: pos + seq_length + 1]
-                else:
-                    inputs = inputs_list[pos: -1]
-                    targets = inputs_list[pos + 1:]
-                #print("in_length: " + str(len(inputs)))
-                #print("t_length: " + str(len(targets)))
-                #print("targets: " + str(targets))
-                output = self.feedforward(inputs, seq_length)
+            output_string = ""
+            input_string = ""
+            for inputs, targets in zip(
+                    [inputs_list[j:j+seq_length] for j in xrange(0, len(inputs_list) - 1, seq_length)],
+                    [inputs_list[j:j+seq_length] for j in xrange(1, len(inputs_list), seq_length)]):
+                outputs = self.feedforward(inputs, seq_length)
                 loss = self.lstm_layer.learn(targets, learning_rate)
                 pos += seq_length
-                output_strings = output_strings[1:] + decode(output, self.int_to_data)
+
+                output_string += decode_sequence(outputs, self.int_to_data)
+                input_string += decode_sequence(inputs, self.int_to_data)
             loss = np.average(loss)
-            print("Iteration " + str(i))
-            print("loss: " + str(loss))
-            print("out: " + output_strings)
+
+            if self.verbose and not i % 10:
+                loss_diff -= loss
+                print("\nIteration " + str(i) + " - learning rate: " + str(learning_rate) + "  ")
+                      #+ ("\\/" if learning_rate_diff > 0 else ("--" if learning_rate_diff == 0 else "/\\"))
+                      #                                        + " " + str(learning_rate_diff)[1:])
+                print("loss: " + str(loss) + "  "
+                      + ("\\/" if loss_diff > 0 else ("--" if loss_diff == 0 else "/\\"))
+                      + " " + str(loss_diff)[1:])
+                print("in: " + input_string)
+                print("out: " + output_string)
+                if loss_diff < 0:
+                    learning_rate /= 1.2
+                elif loss_diff < (loss / limit):
+                    learning_rate *= 1.2
+                    limit += 2
+                loss_diff = loss
 
     def predict(self, inputs, length=1):
         results = [inputs]

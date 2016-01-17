@@ -5,6 +5,13 @@ from neural_network.NeuralLayer import \
 from LSTMLayerCacheList import LSTMLayerCache
 from utils import debug
 
+import pycuda.autoinit
+import pycuda.gpuarray
+import pycuda.driver
+import scuda.linalg
+import scuda.cumisc
+
+culinalg.init()
 
 class LSTMLayer(object):
     def __init__(self, in_size, memory_size):

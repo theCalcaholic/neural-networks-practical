@@ -1,22 +1,14 @@
 import numpy as np
 from lstm_network.LSTMNetwork import LSTMNetwork
-from lstm_network.utils import decode
+from lstm_network.utils import decode, encode
 
 
-input_data = "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
-    + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"
-memory_size = 6
-sequence_length = 25  # 'length' of memory
-learning_rate = 1e-1
-data_set = set(input_data)
+input_data = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam"
+
+sequence_length = 50  # 'length' of memory
+learning_rate = 0.1
+data_set = set(input_data + str.join("", [chr(x) for x in range(90 - 18)]))
+memory_size = len(data_set)
 
 data_to_int = {dat: i for i, dat in enumerate(data_set)}
 int_to_data = {i: dat for i, dat in enumerate(data_set)}
@@ -24,16 +16,15 @@ int_to_data = {i: dat for i, dat in enumerate(data_set)}
 encoded_data = []
 for t in xrange(len(input_data)):
     # encode character in 1-of-k representation
-    input_int = data_to_int[input_data[t]]
-    encoded_data.append(np.zeros((len(data_set), 1)))
-    encoded_data[-1][input_int] = 1
+    encoded_data.append(encode(input_data[t], data_to_int, len(data_set)))
+
 
 lstm = LSTMNetwork()
 lstm.int_to_data = int_to_data
 
 lstm.populate(data_set, layer_sizes=[memory_size])
 
-lstm.train(encoded_data, 5, iterations=300)
+lstm.train(encoded_data, 5, iterations=20000)
 
 
 #print("result: " + str(lstm.feedforward(np.array([1]))))

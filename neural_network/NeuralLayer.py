@@ -5,7 +5,8 @@ from lstm_network.utils import debug
 class NeuralLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
         self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size))
-        self.biases = numpy.zeros(out_size)
+        if not hasattr(self, 'biases'):
+            self.biases = numpy.zeros(out_size)
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size
@@ -53,6 +54,11 @@ class NeuralLayer(object):
 
 
 class BiasedNeuralLayer(NeuralLayer):
+    def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
+        self.biases = numpy.ones(out_size)
+        super(BiasedNeuralLayer, self).__init__(
+            in_size, out_size, activation_fn, activation_fn_deriv)
+
     def learn(self, result, delta, learning_rate):
         super(BiasedNeuralLayer, self).learn(result, delta, learning_rate)
         self.biases += learning_rate * delta

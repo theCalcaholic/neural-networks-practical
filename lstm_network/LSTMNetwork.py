@@ -28,6 +28,7 @@ class LSTMNetwork:
 
         self.lstm_layer = LSTMLayer(
             in_size=len(self.chars),
+            out_size=len(self.chars),
             memory_size=layer_sizes[0])
         """self.output_layer = Layer(
             in_size=self.lstm_layer.size,
@@ -69,17 +70,12 @@ class LSTMNetwork:
 
         return outputs
 
-    def backpropagate(self, targets_list):
-        self.output_layer.get_delta(
-            self.last_cache.predecessor.output_layer_results,
-        )
-        return self.lstm_layer.learn(targets_list)
-
     def train(self, inputs_list, seq_length, iterations=100, learning_rate=0.1):
         #print("inputs_list: " + str(inputs_list))
         loss = 1.0
         loss_diff = 0
-        limit = 50
+        #limit = 50
+        av_loss_diff = 0
         for i in xrange(iterations):
             pos = 0
             output_string = ""
@@ -105,12 +101,20 @@ class LSTMNetwork:
                       + " " + str(loss_diff)[1:])
                 print("in: " + input_string)
                 print("out: " + output_string)
-                if loss_diff < 0:
-                    learning_rate /= 1.2
-                elif loss_diff < (loss / limit):
-                    learning_rate *= 1.2
-                    limit += 2
+                av_loss_diff += abs(loss_diff)
+                if i == 0:
+                    av_loss_diff = 0
+                if i > 0:
+                    print("average lossdiff: " + str(av_loss_diff / i))
+                if loss > 0.8:
+                    self.roll_weights()
+                    i = 0
+                learning_rate = math.sqrt(loss) / 10
                 loss_diff = loss
+
+
+    def roll_weights(self):
+        self.populate(self.chars, [self.lstm_layer.size])
 
     def predict(self, inputs, length=1):
         results = [inputs]

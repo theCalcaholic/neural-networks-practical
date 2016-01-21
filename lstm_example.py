@@ -24,7 +24,7 @@ lstm.int_to_data = int_to_data
 
 lstm.populate(data_set, layer_sizes=[memory_size])
 
-lstm.train(encoded_data, 5, iterations=20000)
+lstm.train(encoded_data, 5, iterations=20000, learning_rate=learning_rate)
 
 
 #print("result: " + str(lstm.feedforward(np.array([1]))))

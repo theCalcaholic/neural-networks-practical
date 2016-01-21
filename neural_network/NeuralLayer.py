@@ -1,30 +1,36 @@
-import numpy
+import numpy as np
+from pycuda import gpuarray
+import skcuda.linalg as culinalg
+import skcuda.misc as cumisc
 from lstm_network.utils import debug
+
+
+culinalg.init()
 
 
 class NeuralLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
-        self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size))
-        self.biases = numpy.zeros(out_size)
+        self.weights = gpuarray.to_gpu(np.random.uniform(-1.0, 1.0, (out_size, in_size)))
+        self.biases = gpuarray.zeros((out_size, 1))
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size
 
     def feed(self, data):
         #print("weights shape: " + str(numpy.shape(self.weights)) + " - data shape: " + str(numpy.shape(data)) + " - bias shape: " + str(numpy.shape(self.biases)))
-        return self.activation(numpy.dot(self.weights, data) + numpy.atleast_2d(self.biases).T)
+        return self.activation(culinalg.dot(self.weights, data) + self.biases.T)
 
     def reverse_feed(self, data):
-        return self.activation(numpy.dot(data - numpy.atleast_2d(self.biases), self.weights))
+        return self.activation(culinalg.dot(data - self.biases, self.weights))
 
     def learn(self, result, delta, learning_rate):
-        delta_weights = learning_rate * numpy.outer(delta, result)
+        delta_weights = learning_rate * culinalg.outer(delta, result)
         self.weights += delta_weights
 
     def get_delta(self, result, last_delta, last_weights):
-        debug("delta shape: " + str(numpy.shape(last_delta)) + " - result shape: " + str(numpy.shape(result)) + " - weights shape: " + str(numpy.shape(self.weights)))
-        last_weights = numpy.atleast_2d(last_weights)
-        return numpy.dot(last_delta, last_weights) * self.activation_deriv(result)
+        debug("delta shape: " + str(last_delta.shape) + " - result shape: " + str(numpy.shape(result)) + " - weights shape: " + str(numpy.shape(self.weights)))
+        last_weights = last_weights
+        return culinalg.dot(last_delta, last_weights) * self.activation_deriv(result)
 
 
     @classmethod

@@ -5,37 +5,41 @@ from neural_network.NeuralLayer import \
 from LSTMLayerCacheList import LSTMLayerCache
 from utils import debug
 
-import pycuda.autoinit
-import pycuda.gpuarray
-import pycuda.driver
-import scuda.linalg
+import pycuda
+"""import scuda.linalg
 import scuda.cumisc
 
-culinalg.init()
+culinalg.init()"""
+garray = CudaWrapper()
 
 class LSTMLayer(object):
     def __init__(self, in_size, memory_size):
         concat_size = in_size + memory_size
-        self.forget_gate_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of state
-            activation_fn=Layer.activation_sigmoid,
-            activation_fn_deriv=Layer.activation_sigmoid_deriv)
-        self.input_gate_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of update_values_layer (transposed state)
-            activation_fn=Layer.activation_sigmoid,
-            activation_fn_deriv=Layer.activation_sigmoid_deriv)
-        self.update_values_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of state
-            activation_fn=Layer.activation_tanh,
-            activation_fn_deriv=Layer.activation_tanh_deriv)
-        self.output_gate_layer = Layer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of state
-            activation_fn=Layer.activation_sigmoid,
-            activation_fn_deriv=Layer.activation_sigmoid_deriv)
+        self.forget_gate_layer = garray(
+            BiasedLayer(
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of state
+                activation_fn=Layer.activation_sigmoid,
+                activation_fn_deriv=Layer.activation_sigmoid_deriv))
+        self.input_gate_layer = garray(
+            BiasedLayer(
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of update_values_layer (transposed state)
+                activation_fn=Layer.activation_sigmoid,
+                activation_fn_deriv=Layer.activation_sigmoid_deriv))
+        self.update_values_layer = garray.to_gpu(
+            BiasedLayer(
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of state
+                activation_fn=Layer.activation_tanh,
+                activation_fn_deriv=Layer.activation_tanh_deriv))
+        self.output_gate_layer = garray.to_gpu(
+            Layer(
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of state
+                activation_fn=Layer.activation_sigmoid,
+                activation_fn_deriv=Layer.activation_sigmoid_deriv))
+
         self.pending_updates = LSTMLayerPendingUpdates(in_size, memory_size)
         self.size = memory_size
         self.in_size = in_size
@@ -197,14 +201,14 @@ class LSTMLayer(object):
 
 class LSTMLayerPendingUpdates(object):
     def __init__(self, in_size, out_size):
-        self.update_values_layer_weights = np.zeros((out_size, in_size + out_size))
-        self.input_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.forget_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.output_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.update_values_layer_biases = np.zeros(out_size)
-        self.input_gate_biases = np.zeros(out_size)
-        self.forget_gate_biases = np.zeros(out_size)
-        self.output_gate_biases = np.zeros(out_size)
+        self.update_values_layer_weights = garray.zeros((out_size, in_size + out_size))
+        self.input_gate_weights = garray.zeros((out_size, in_size + out_size))
+        self.forget_gate_weights = garray.zeros((out_size, in_size + out_size))
+        self.output_gate_weights = garray.zeros((out_size, in_size + out_size))
+        self.update_values_layer_biases = garray.zeros(out_size)
+        self.input_gate_biases = garray.zeros(out_size)
+        self.forget_gate_biases = garray.zeros(out_size)
+        self.output_gate_biases = garray.zeros(out_size)
         self.in_size = in_size
         self.out_size = out_size
 

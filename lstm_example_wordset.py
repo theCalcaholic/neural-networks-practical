@@ -4,7 +4,7 @@ from lstm_network.utils import decode, encode
 import random
 
 
-input_data = [line.rstrip('\n').replace(' ', '-') for line in open("lstm_training_data/schimpfworte.txt")]
+input_data = [line.rstrip(" ") for line in open("lstm_training_data/vanishing_vocables_de.txt")]
 
 sequence_length = 50  # 'length' of memory
 learning_rate = 0.1
@@ -24,11 +24,11 @@ def int_to_data(x):
 ids = range(len(input_data) - 1)
 
 random_samples = []
-for i in range(50):
-    rand_num = random.randint(0, len(ids))
+for i in range(200):
+    rand_num = random.randint(0, len(ids)-1)
     rand_id = ids.pop(rand_num)
     random_samples.append(input_data[rand_id])
-random_samples = [ord(x) for x in ' '.join(random_samples)]
+random_samples = [ord(x) for x in ''.join(random_samples)]
 #print(random_samples)
 encoded_data = []
 for t in xrange(len(random_samples)):
@@ -41,11 +41,11 @@ lstm = LSTMNetwork()
 #print(str(len(data_set)) + "\nmemsize " + str(memory_size) + "\nmaxInt")
 
 lstm.populate(data_set, layer_sizes=[memory_size])
-#lstm.load("lstm_schimpfworte_save")
+#lstm.load("lstm_wordset_save")
 
 lstm._int_to_data = _int_to_data
 lstm._data_to_int = _data_to_int
-lstm.train(encoded_data, 20, iterations=20000, learning_rate=learning_rate, save_dir="lstm_schimpfworte_save")
+lstm.train(encoded_data, 20, iterations=20000, learning_rate=learning_rate, save_dir="lstm_wordset_save")
 
 
 #print("result: " + str(lstm.feedforward(np.array([1]))))

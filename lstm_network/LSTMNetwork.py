@@ -98,7 +98,6 @@ class LSTMNetwork:
                 output_string += decode_sequence(outputs, self.int_to_data)
                 input_string += decode_sequence(inputs, self.int_to_data)
             loss = np.average(loss)
-            learning_rate = min(0.1, math.sqrt(loss) / 10)
 
             if not i % 10:
                 self.lstm_layer.save(os.path.join(os.getcwd(), save_dir))
@@ -110,8 +109,8 @@ class LSTMNetwork:
                     print("loss: " + str(loss) + "  "
                           + ("\\/" if loss_diff > 0 else ("--" if loss_diff == 0 else "/\\"))
                           + " " + str(loss_diff)[1:])
-                    print("in: " + input_string)
-                    print("out: " + output_string)
+                    print("in: " + input_string.replace("\n", "\\n"))
+                    print("out: " + output_string.replace("\n", "\\n"))
                     av_loss_diff += abs(loss_diff)
                     if i == 0:
                         av_loss_diff = 0
@@ -124,6 +123,8 @@ class LSTMNetwork:
                             free_in = encode(ord(free[-1]), self.data_to_int, len(self.chars))
                             free += decode(self.lstm_layer2.feed(free_in), self.int_to_data)
                         print("freestyle: " + free)
+
+                learning_rate = math.sqrt(loss) / 10
                 """if loss > 1:
                     self.roll_weights()
                     i = -1"""

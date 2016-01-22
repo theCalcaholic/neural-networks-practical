@@ -1,12 +1,13 @@
 import numpy
+import logging
 from lstm_network.utils import debug
 
 
 class NeuralLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
-        self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size))
+        self.weights = numpy.random.uniform(-1.0, 1.0, (out_size, in_size)).astype(numpy.float64)
         if not hasattr(self, 'biases'):
-            self.biases = numpy.zeros(out_size)
+            self.biases = numpy.zeros(out_size).astype(numpy.float64)
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size
@@ -27,6 +28,13 @@ class NeuralLayer(object):
         last_weights = numpy.atleast_2d(last_weights)
         return numpy.dot(last_delta, last_weights) * self.activation_deriv(result)
 
+    def save(self, path):
+        numpy.savez(path, weights=self.weights, biases=self.biases)
+
+    def load(self, path):
+        np_saved = numpy.load(path)
+        self.weights = np_saved['weights']
+        self.biases = np_saved['biases']
 
     @classmethod
     def activation_linear(cls, x):

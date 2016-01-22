@@ -1,13 +1,10 @@
+import os
 import numpy as np
 from neural_network.NeuralLayer import \
     NeuralLayer as Layer, \
     BiasedNeuralLayer as BiasedLayer
 from LSTMLayerCacheList import LSTMLayerCache
 from utils import debug
-import logging
-
-
-np.seterr(over='raise')
 
 class LSTMLayer(object):
     def __init__(self, in_size, out_size, memory_size):
@@ -82,14 +79,12 @@ class LSTMLayer(object):
         cache.input_values = input_data
         cache.concatenated_input = data
         # update forget gate
-        try:
-            cache.forget_gate_results = self.forget_gate_layer.feed(data)
-            cache.input_gate_results = self.input_gate_layer.feed(data)
-            cache.update_values_layer_results = self.update_values_layer.feed(data)
-            cache.output_gate_results = self.output_gate_layer.feed(data)
-        except FloatingPointError as error:
-            logging.error(error)
-            remove_cache = True
+
+        cache.forget_gate_results = self.forget_gate_layer.feed(data)
+        cache.input_gate_results = self.input_gate_layer.feed(data)
+        cache.update_values_layer_results = self.update_values_layer.feed(data)
+        cache.output_gate_results = self.output_gate_layer.feed(data)
+
         # calculate state update values
         ##print("ff update values shape: " + str(np.shape(self.cache[-1].update_values)) + " - input gate shape: " + str(np.shape(self.cache[-1].input_gate)))
         update_values = np.multiply(
@@ -139,27 +134,19 @@ class LSTMLayer(object):
 
         delta_state = cache.output_gate_results * loss_output + last_loss_state
 
-        try:
-            delta_output_gate = self.output_gate_layer.activation_deriv(
-                cache.output_gate_results) * cache.state * loss_output
+        delta_output_gate = self.output_gate_layer.activation_deriv(
+            cache.output_gate_results) * cache.state * loss_output
 
-            delta_input_gate = self.input_gate_layer.activation_deriv(
-                cache.input_gate_results) * cache.update_values_layer_results * delta_state
+        delta_input_gate = self.input_gate_layer.activation_deriv(
+            cache.input_gate_results) * cache.update_values_layer_results * delta_state
 
-            delta_update_values_layer = self.update_values_layer.activation_deriv(
-                cache.update_values_layer_results) * cache.input_gate_results * delta_state
+        delta_update_values_layer = self.update_values_layer.activation_deriv(
+            cache.update_values_layer_results) * cache.input_gate_results * delta_state
 
-            delta_forget_gate = self.forget_gate_layer.activation_deriv(
-                cache.forget_gate_results) * cache.predecessor.state * delta_state
-        except FloatingPointError as error:
-            logging.error(error)
-            print "Overflow Warning!"
-            cache.loss_state = cache.predecessor.loss_state
-            cache.loss_input = cache.predecessor.loss_input
-            cache.loss_output = cache.predecessor.loss_output
-            return self.learn_recursive(cache.predecessor, target_outputs[:-1], loss_total)
+        delta_forget_gate = self.forget_gate_layer.activation_deriv(
+            cache.forget_gate_results) * cache.predecessor.state * delta_state
+
         #print("delta_FG: " + str(np.shape(delta_forget_gate)))
-
         concat_in = cache.concatenated_input
 
         """print("input weights shape: " + str(np.shape(self.pending_updates.input_gate_weights)))
@@ -228,6 +215,18 @@ class LSTMLayer(object):
         self.output_gate_layer.biases -= lr * p_updates.output_gate_biases
         p_updates.reset()
 
+    def save(self, directory):
+        self.forget_gate_layer.save(os.path.join(directory, "forget_gate.npz"))
+        self.input_gate_layer.save(os.path.join(directory, "input_gate.npz"))
+        self.output_gate_layer.save(os.path.join(directory, "output_gate.npz"))
+        self.update_values_layer.save(os.path.join(directory, "update_values_layer.npz"))
+
+    def load(self, directory):
+        self.forget_gate_layer.load(os.path.join(directory, "forget_gate.npz"))
+        self.input_gate_layer.load(os.path.join(directory, "input_gate.npz"))
+        self.output_gate_layer.load(os.path.join(directory, "output_gate.npz"))
+        self.update_values_layer.load(os.path.join(directory, "update_values_layer.npz"))
+
     @classmethod
     def get_output_error(cls, prediction, target):
         difference = np.zeros_like(prediction)
@@ -256,3 +255,4 @@ class LSTMLayerPendingUpdates(object):
 
     def reset(self):
         self.__init__(self.in_size, self.out_size)
+

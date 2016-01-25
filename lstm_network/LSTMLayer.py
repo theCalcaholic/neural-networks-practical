@@ -14,6 +14,7 @@ class LSTMLayer(object):
             out_size=memory_size,  # size of state
             activation_fn=Layer.activation_sigmoid,
             activation_fn_deriv=Layer.activation_sigmoid_deriv)
+        self.forget_gate_layer.biases = np.ones(memory_size)
         self.input_gate_layer = BiasedLayer(
             in_size=concat_size,  # size of input/last output
             out_size=memory_size,  # size of update_values_layer (transposed state)
@@ -30,11 +31,11 @@ class LSTMLayer(object):
             activation_fn=Layer.activation_sigmoid,
             activation_fn_deriv=Layer.activation_sigmoid_deriv)
         # Uncomment for output layer
-        """self.output_layer = Layer(
+        self.output_layer = Layer(
             in_size=memory_size,
             out_size=out_size or in_size,
             activation_fn=Layer.activation_linear,
-            activation_fn_deriv=Layer.activation_linear_deriv)"""
+            activation_fn_deriv=Layer.activation_linear_deriv)
         self.pending_updates = LSTMLayerPendingUpdates(in_size, memory_size)
         self.size = memory_size
         self.in_size = in_size
@@ -101,13 +102,8 @@ class LSTMLayer(object):
         cache.output_values = Layer.activation_tanh(cache.state) * cache.output_gate_results
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
         # Uncomment for output layer:
-        #cache.final_output_values = self.output_layer.feed(cache.output_values)
-        #return cache.final_output_values
-        out = cache.output_values
-        if remove_cache:
-            cache.remove()
-            del cache
-        return out
+        cache.final_output_values = self.output_layer.feed(cache.output_values)
+        return cache.final_output_values
 
     def learn_recursive(self, cache, target_outputs, loss_total=0, learning_rate=0.01):
         debug("learn_rec(" + str(target_outputs) + ")")
@@ -115,18 +111,19 @@ class LSTMLayer(object):
             return loss_total
         # calculate loss and cumulative loss but keep loss for t+1 (last loss)
         target = target_outputs[-1]
-        loss_total += self.loss_function(cache.output_values[:], target)
+        loss_total += self.loss_function(cache.final_output_values[:], target)
 
         # Uncomment for output layer
-        """delta_final_output = cache.final_output_values - target
+        delta_final_output = cache.final_output_values - target
         loss_output = np.dot(
                 self.output_layer.weights.T,
-                delta_final_output)"""
+                delta_final_output)
 
-        loss_output = 2 * (cache.output_values - target)
+        loss_output += cache.successor.loss_output
+        #loss_output += 2 * (cache.output_values - target)
         debug("loss_output: " + str(np.shape(loss_output))
             + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
-        loss_output += cache.successor.loss_output
+
         last_loss_state = cache.successor.loss_state
 
         #print("\noutput_layer_weights: " + str(np.shape(self.output_layer.weights))
@@ -164,9 +161,9 @@ class LSTMLayer(object):
         # Uncomment for output layer
         """debug("\ndelta_final_output: " + str(np.shape(delta_final_output))
               + "\noutput_values: " + str(np.shape(cache.output_values))
-              + "\npending_weight_updates: " + str(np.shape(self.pending_updates.output_layer_weights)))
+              + "\npending_weight_updates: " + str(np.shape(self.pending_updates.output_layer_weights)))"""
         self.pending_updates.output_layer_weights += \
-            np.outer(cache.output_values, delta_final_output)"""
+            np.outer(cache.output_values, delta_final_output)
 
         """print("input delta shape: " + str(np.shape(delta_input_gate)))
         print("input delta: " + str(np.reshape(delta_input_gate, (3,))))
@@ -196,6 +193,7 @@ class LSTMLayer(object):
 
     def learn(self, target_outputs, learning_rate=0.001):
         debug("learn(" + str(target_outputs) + ")")
+        #self.last_cache.loss_output = (self.last_cache.predecessor.output_values - target_outputs[-1])
         loss = self.learn_recursive(self.last_cache.predecessor, target_outputs, learning_rate)
         self.apply_training(learning_rate)
         return loss
@@ -255,4 +253,8 @@ class LSTMLayerPendingUpdates(object):
 
     def reset(self):
         self.__init__(self.in_size, self.out_size)
+
+    @classmethod
+    def activation_fn_forget_gate(cls, x):
+        return Layer.activation_sigmoid(x)
 

@@ -78,13 +78,13 @@ class LSTMNetwork:
 
         return outputs
 
-    def train(self, inputs_list, seq_length, iterations=100, learning_rate=0.1, save_dir="lstm_save"):
+    def train(self, inputs_list, seq_length, iterations=100, learning_rate=0.1, save_dir="lstm_save", iteration_start=0):
         #print("inputs_list: " + str(inputs_list))
         loss = 1.0
         loss_diff = 0
         limit = 30
         av_loss_diff = 0
-        for i in xrange(iterations):
+        for i in xrange(iteration_start, iterations):
             pos = 0
             output_string = ""
             input_string = ""
@@ -124,7 +124,7 @@ class LSTMNetwork:
                             free += decode(self.lstm_layer2.feed(free_in), self.int_to_data)
                         print("freestyle: " + free)
 
-                learning_rate = math.sqrt(loss) / 10
+                #math.sqrt(loss) / 10
                 """if loss > 1:
                     self.roll_weights()
                     i = -1"""

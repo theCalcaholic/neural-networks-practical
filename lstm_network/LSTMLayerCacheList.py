@@ -148,7 +148,7 @@ class LSTMLayerCache(object):
         self.successor = None
         self.is_first_cache = False
         self.is_last_cache = False
-
+        self.final_output_values = None
         self.output_layer_results = None
 
     def insert_before(self, cache):

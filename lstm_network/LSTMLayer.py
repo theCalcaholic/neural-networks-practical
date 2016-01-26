@@ -84,7 +84,7 @@ class LSTMLayer(object):
                 cache.update_values_layer_results)
         # apply forget layer and apply state update values
         ##print("ff forget gate: " + str(self.cache[-1].forget_gate))
-        cache.state = cache.predecessor.state * self.last_cache.predecessor.forget_gate_results \
+        cache.state = cache.predecessor.state * cache.forget_gate_results \
                       + update_values
         ##print("ff forgotten state shape: " + str(np.shape(self.cache[-1].state)))
         ##print("ff updated state shape: " + str(np.shape(self.cache[-1].state)))

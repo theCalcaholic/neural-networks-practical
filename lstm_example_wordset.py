@@ -21,7 +21,7 @@ data_store.set_input_text(input_text)
 #data_store.load_file("lstm_training_data/loremipsum.txt")
 data_store.configure({
     "memory_size": 100,
-    "sequence_length": 15,
+    "sequence_length": 20,
     "extend_alphabet": False
 })
 
@@ -43,13 +43,13 @@ lstm.train(
         samples,
         seq_length=data_store.config["sequence_length"],
         iterations=20000,
-        learning_rate=0.01,
+        learning_rate=0.001,
         save_dir="lstm_loremipsum_save")
 
 configs = {
     "lorem_ipsum_small": {
         "memory_size": 200,
         "sequence_length": 10,
-        "learning_rate": 0.1
+        "learning_rate": 0.01
     }
 }

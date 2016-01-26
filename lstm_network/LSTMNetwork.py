@@ -102,7 +102,7 @@ class LSTMNetwork:
             loss = np.average(loss)
 
             if not i % 10:
-                #self.lstm_layer.save(os.path.join(os.getcwd(), save_dir))
+                self.lstm_layer.save(os.path.join(os.getcwd(), save_dir))
                 self.lstm_layer.visualize()
                 loss_diff -= loss
                 if self.verbose:
@@ -114,13 +114,13 @@ class LSTMNetwork:
                           + " " + str(loss_diff)[1:])
                     print("in: " + input_string.replace("\n", "\\n"))
                     print("out: " + output_string.replace("\n", "\\n"))
-                    """if not i % 100:
+                    if not i % 100:
                         self.lstm_layer2.load(save_dir)
                         free = "a"
                         for i in range(30):
                             free_in = encode(ord(free[-1]), self.data_to_int, len(self.chars))
                             free += decode(self.lstm_layer2.feed(free_in), self.int_to_data)
-                        print("freestyle: " + free)"""
+                        print("freestyle: " + free)
 
                 loss_diff = loss
                 time.sleep(1)

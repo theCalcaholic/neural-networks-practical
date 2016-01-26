@@ -14,14 +14,14 @@ import random
              + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
              + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
              + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"""""
-input_text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam"
+input_text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, ipsum sed diam"
 data_store = DataStore()
 data_store.set_input_text(input_text)
 #data_store.load_file("lstm_training_data/vanishing_vocables_de.txt")
 #data_store.load_file("lstm_training_data/loremipsum.txt")
 data_store.configure({
-    "memory_size": 200,
-    "sequence_length": 10
+    "memory_size": 100,
+    "sequence_length": 15
 })
 
 samples = data_store.get_samples()

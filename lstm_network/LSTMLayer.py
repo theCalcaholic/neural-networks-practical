@@ -33,12 +33,13 @@ class LSTMLayer(object):
                 activation_fn=Layer.activation_sigmoid,
                 activation_fn_deriv=Layer.activation_sigmoid_deriv)
         # Uncomment for output layer
-        """self.output_layer = Layer(
+        self.output_layer = Layer(
             in_size=memory_size,
-            out_size=out_size or in_size,
+            out_size=out_size,
             activation_fn=Layer.activation_linear,
-            activation_fn_deriv=Layer.activation_linear_deriv)"""
-        self.pending_updates = LSTMLayerPendingUpdates(in_size, memory_size)
+            activation_fn_deriv=Layer.activation_linear_deriv)
+        self.output_layer.weights = np.ones((out_size, memory_size))
+        self.pending_updates = LSTMLayerPendingUpdates(in_size, memory_size, out_size)
         self.size = memory_size
         self.in_size = in_size
         self.out_size = out_size
@@ -93,9 +94,10 @@ class LSTMLayer(object):
         cache.output_values = Layer.activation_tanh(cache.state) * cache.output_gate_results
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
         # Uncomment for output layer:
-        # cache.final_output_values = self.output_layer.feed(cache.output_values)
+        cache.final_output_values = self.output_layer.feed(cache.output_values)
+        cache.final_output_values = cache.output_values
         # cache.final_output_values = cache.output_values
-        return cache.output_values
+        return cache.final_output_values
 
     def learn_recursive(self, cache, target_outputs, loss_total=0, learning_rate=0.01):
         debug("learn_rec(" + str(target_outputs) + ")")
@@ -103,10 +105,13 @@ class LSTMLayer(object):
             return loss_total
         # calculate loss and cumulative loss but keep loss for t+1 (last loss)
         target = target_outputs[-1]
-        loss_total += self.loss_function(cache.output_values, target)
+        cache.final_output_values = cache.output_values
+        #print(str(np.shape(target)) + str(target[0]) +
+        #      "\n" + str(np.shape(cache.final_output_values)) + str(cache.final_output_values[0]))
+        loss_total += self.loss_function(cache.final_output_values, target)
 
         # Uncomment for output layer
-        # delta_final_output = target - cache.final_output_values
+        delta_final_output = cache.final_output_values - target
         """loss_output = np.dot(
                 self.output_layer.weights.T,
                 delta_final_output)"""
@@ -116,6 +121,9 @@ class LSTMLayer(object):
               + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
 
         last_loss_state = cache.successor.loss_state
+
+        #print(str(np.shape(cache.final_output_values)) + str(np.shape(delta_final_output)))
+        #self.output_layer.learn(cache.output_values, -delta_final_output, learning_rate)
 
         delta_state = cache.output_gate_results * loss_output + last_loss_state
 
@@ -213,33 +221,34 @@ class LSTMLayer(object):
         return (predicted - target) ** 2
 
     def visualize(self):
-        KTimage.exporttiles(self.input_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_Input_1_0.pgm",
+        KTimage.exporttiles(self.input_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_InputG_1_0.pgm",
                             1, self.size)
-        KTimage.exporttiles(self.forget_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_Forget_2_0.pgm",
+        KTimage.exporttiles(self.forget_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_ForgetG_2_0.pgm",
                             1, self.size)
         KTimage.exporttiles(self.update_values_layer.weights, self.in_size + self.size, 1,
-                            "visualize/obs_Update_3_0.pgm", 1, self.size)
-        KTimage.exporttiles(self.output_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_Output_4_0.pgm",
+                            "visualize/obs_UpdateL_3_0.pgm", 1, self.size)
+        KTimage.exporttiles(self.output_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_OutputG_4_0.pgm",
                             1, self.size)
-        # KTimage.exporttiles(self.output_layer.weights, self.size, 1, "visualize/obs_O_0_1.pgm", 1, self.output_layer.size)
+        #KTimage.exporttiles(self.output_layer.weights, self.size, 1, "visualize/obs_OutputL_5_0.pgm", 1, self.output_layer.size)
 
 
 class LSTMLayerPendingUpdates(object):
-    def __init__(self, in_size, out_size):
-        self.update_values_layer_weights = np.zeros((out_size, in_size + out_size))
-        self.input_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.forget_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.output_gate_weights = np.zeros((out_size, in_size + out_size))
-        self.update_values_layer_biases = np.zeros(out_size)
-        self.input_gate_biases = np.zeros(out_size)
-        self.forget_gate_biases = np.zeros(out_size)
-        self.output_gate_biases = np.zeros(out_size)
-        self.output_layer_weights = np.zeros((out_size, in_size))
+    def __init__(self, in_size, mem_size, out_size):
+        self.update_values_layer_weights = np.zeros((mem_size, in_size + mem_size))
+        self.input_gate_weights = np.zeros((mem_size, in_size + mem_size))
+        self.forget_gate_weights = np.zeros((mem_size, in_size + mem_size))
+        self.output_gate_weights = np.zeros((mem_size, in_size + mem_size))
+        self.update_values_layer_biases = np.zeros(mem_size)
+        self.input_gate_biases = np.zeros(mem_size)
+        self.forget_gate_biases = np.zeros(mem_size)
+        self.output_gate_biases = np.zeros(mem_size)
+        self.output_layer_weights = np.zeros((out_size, mem_size))
         self.in_size = in_size
+        self.mem_size = mem_size
         self.out_size = out_size
 
     def reset(self):
-        self.__init__(self.in_size, self.out_size)
+        self.__init__(self.in_size, self.mem_size, self.out_size)
 
     @classmethod
     def activation_fn_forget_gate(cls, x):

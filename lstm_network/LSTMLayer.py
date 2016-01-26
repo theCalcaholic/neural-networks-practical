@@ -27,12 +27,15 @@ class LSTMLayer(object):
                 out_size=memory_size,  # size of state
                 activation_fn=Layer.activation_tanh,
                 activation_fn_deriv=Layer.activation_tanh_deriv)
-        self.output_gate_layer = BiasedLayer(
+        self.output_gate_layer = Layer(
                 in_size=concat_size,  # size of input/last output
                 out_size=memory_size,  # size of state
                 activation_fn=Layer.activation_sigmoid,
                 activation_fn_deriv=Layer.activation_sigmoid_deriv)
+
         self.use_output_layer = False
+        self.use_output_slicing = False
+
         self.output_layer = Layer(
             in_size=memory_size,
             out_size=out_size,
@@ -95,8 +98,10 @@ class LSTMLayer(object):
         # Uncomment for output layer:
         if self.use_output_layer:
             cache.final_output_values = self.output_layer.feed(cache.output_values)
-        else:
+        elif self.use_output_slicing:
             cache.final_output_values = cache.output_values[:self.out_size]
+        else:
+            cache.final_output_values = cache.output_values
         return cache.final_output_values
 
     def learn_recursive(self, cache, target_outputs, loss_total=0, learning_rate=0.01):
@@ -110,14 +115,16 @@ class LSTMLayer(object):
         loss_total += self.loss_function(cache.final_output_values, target)
 
         # Uncomment for output layer
+        delta_final_output = cache.final_output_values - target
         if self.use_output_layer:
-            delta_final_output = cache.final_output_values - target
             loss_output = np.dot(
                     self.output_layer.weights.T,
                     delta_final_output)
-        else:
+        elif self.use_output_slicing:
             loss_output = np.zeros((self.size, 1))
-            loss_output[:self.out_size] = 2 * (cache.final_output_values - target)
+            loss_output[:self.out_size] = 2 * delta_final_output
+        else:
+            loss_output = 2 * delta_final_output
         loss_output += cache.successor.loss_output
         debug("loss_output: " + str(np.shape(loss_output))
               + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
@@ -210,12 +217,14 @@ class LSTMLayer(object):
         self.input_gate_layer.save(os.path.join(directory, "input_gate.npz"))
         self.output_gate_layer.save(os.path.join(directory, "output_gate.npz"))
         self.update_values_layer.save(os.path.join(directory, "update_values_layer.npz"))
+        self.output_layer.save(os.path.join(directory, "output_layer.npz"))
 
     def load(self, directory):
         self.forget_gate_layer.load(os.path.join(directory, "forget_gate.npz"))
         self.input_gate_layer.load(os.path.join(directory, "input_gate.npz"))
         self.output_gate_layer.load(os.path.join(directory, "output_gate.npz"))
         self.update_values_layer.load(os.path.join(directory, "update_values_layer.npz"))
+        self.output_layer.load(os.path.join(directory, "output_layer.npz"))
 
     @classmethod
     def get_output_error(cls, prediction, target):

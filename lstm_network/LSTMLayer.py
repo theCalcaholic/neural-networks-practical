@@ -32,13 +32,12 @@ class LSTMLayer(object):
                 out_size=memory_size,  # size of state
                 activation_fn=Layer.activation_sigmoid,
                 activation_fn_deriv=Layer.activation_sigmoid_deriv)
-        # Uncomment for output layer
+        self.use_output_layer = False
         self.output_layer = Layer(
             in_size=memory_size,
             out_size=out_size,
             activation_fn=Layer.activation_linear,
             activation_fn_deriv=Layer.activation_linear_deriv)
-        self.output_layer.weights = np.ones((out_size, memory_size))
         self.pending_updates = LSTMLayerPendingUpdates(in_size, memory_size, out_size)
         self.size = memory_size
         self.in_size = in_size
@@ -94,9 +93,10 @@ class LSTMLayer(object):
         cache.output_values = Layer.activation_tanh(cache.state) * cache.output_gate_results
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
         # Uncomment for output layer:
-        cache.final_output_values = self.output_layer.feed(cache.output_values)
-        cache.final_output_values = cache.output_values
-        # cache.final_output_values = cache.output_values
+        if self.use_output_layer:
+            cache.final_output_values = self.output_layer.feed(cache.output_values)
+        else:
+            cache.final_output_values = cache.output_values[:self.out_size]
         return cache.final_output_values
 
     def learn_recursive(self, cache, target_outputs, loss_total=0, learning_rate=0.01):
@@ -105,17 +105,19 @@ class LSTMLayer(object):
             return loss_total
         # calculate loss and cumulative loss but keep loss for t+1 (last loss)
         target = target_outputs[-1]
-        cache.final_output_values = cache.output_values
         #print(str(np.shape(target)) + str(target[0]) +
         #      "\n" + str(np.shape(cache.final_output_values)) + str(cache.final_output_values[0]))
         loss_total += self.loss_function(cache.final_output_values, target)
 
         # Uncomment for output layer
-        delta_final_output = cache.final_output_values - target
-        """loss_output = np.dot(
-                self.output_layer.weights.T,
-                delta_final_output)"""
-        loss_output = 2 * (cache.output_values - target)
+        if self.use_output_layer:
+            delta_final_output = cache.final_output_values - target
+            loss_output = np.dot(
+                    self.output_layer.weights.T,
+                    delta_final_output)
+        else:
+            loss_output = np.zeros((self.size, 1))
+            loss_output[:self.out_size] = 2 * (cache.final_output_values - target)
         loss_output += cache.successor.loss_output
         debug("loss_output: " + str(np.shape(loss_output))
               + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
@@ -149,6 +151,9 @@ class LSTMLayer(object):
             np.outer(delta_output_gate, concat_in)
         self.pending_updates.update_values_layer_weights += \
             np.outer(delta_update_values_layer, concat_in)
+        if self.use_output_layer:
+            self.pending_updates.output_layer_weights += \
+                np.outer(delta_final_output, cache.output_values)
 
         self.pending_updates.input_gate_biases += np.ravel(delta_input_gate)
         self.pending_updates.forget_gate_biases += np.ravel(delta_forget_gate)
@@ -184,6 +189,8 @@ class LSTMLayer(object):
         self.input_gate_layer.biases -= lr * p_updates.input_gate_biases
         self.update_values_layer.biases -= lr * p_updates.update_values_layer_biases
         self.output_gate_layer.biases -= lr * p_updates.output_gate_biases
+        if self.use_output_layer:
+            self.output_layer.weights -= lr * p_updates.output_layer_weights
         p_updates.reset()
 
         for matrix in [
@@ -194,7 +201,8 @@ class LSTMLayer(object):
                 self.forget_gate_layer.biases,
                 self.input_gate_layer.biases,
                 self.update_values_layer.biases,
-                self.output_gate_layer.biases]:
+                self.output_gate_layer.biases,
+                self.output_layer.weights]:
             np.clip(matrix, -5, 5, out=matrix)
 
     def save(self, directory):
@@ -229,7 +237,7 @@ class LSTMLayer(object):
                             "visualize/obs_UpdateL_3_0.pgm", 1, self.size)
         KTimage.exporttiles(self.output_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_OutputG_4_0.pgm",
                             1, self.size)
-        #KTimage.exporttiles(self.output_layer.weights, self.size, 1, "visualize/obs_OutputL_5_0.pgm", 1, self.output_layer.size)
+        KTimage.exporttiles(self.output_layer.weights, self.size, 1, "visualize/obs_OutputL_5_0.pgm", 1, self.output_layer.size)
 
 
 class LSTMLayerPendingUpdates(object):

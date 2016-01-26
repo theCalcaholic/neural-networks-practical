@@ -55,7 +55,7 @@ class DataStore(object):
 
     def generate_data(self):
         self.data_set = set([ord(x) for x in ''.join(self.raw_input)])
-        self.extend_data_set()
+        #self.extend_data_set()
         self.data_to_int = {dat: idx for idx, dat in enumerate(self.data_set)}
         self.int_to_data = {idx: dat for idx, dat in enumerate(self.data_set)}
         self.config["in_size"] = len(self.data_set)

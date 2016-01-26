@@ -116,7 +116,7 @@ def exporttiles (X, h, w, filename, x=None, y=None):
         x, y, = 1, 1
         frame = 0
     else:
-        frame = 1 # show one pixel row around each neuron's input weight vector
+        frame = 0 # show one pixel row around each neuron's input weight vector
 
     xy, hw = numpy.shape(X)
     if  (xy != x*y) or (hw != h*w):

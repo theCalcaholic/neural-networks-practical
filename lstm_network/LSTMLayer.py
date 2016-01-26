@@ -5,37 +5,39 @@ from neural_network.NeuralLayer import \
     BiasedNeuralLayer as BiasedLayer
 from LSTMLayerCacheList import LSTMLayerCache
 from utils import debug
+import KTimage
+
 
 class LSTMLayer(object):
     def __init__(self, in_size, out_size, memory_size):
         concat_size = in_size + memory_size
         self.forget_gate_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of state
-            activation_fn=Layer.activation_sigmoid,
-            activation_fn_deriv=Layer.activation_sigmoid_deriv)
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of state
+                activation_fn=Layer.activation_sigmoid,
+                activation_fn_deriv=Layer.activation_sigmoid_deriv)
         self.forget_gate_layer.biases = np.ones(memory_size)
         self.input_gate_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of update_values_layer (transposed state)
-            activation_fn=Layer.activation_sigmoid,
-            activation_fn_deriv=Layer.activation_sigmoid_deriv)
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of update_values_layer (transposed state)
+                activation_fn=Layer.activation_sigmoid,
+                activation_fn_deriv=Layer.activation_sigmoid_deriv)
         self.update_values_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of state
-            activation_fn=Layer.activation_tanh,
-            activation_fn_deriv=Layer.activation_tanh_deriv)
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of state
+                activation_fn=Layer.activation_tanh,
+                activation_fn_deriv=Layer.activation_tanh_deriv)
         self.output_gate_layer = BiasedLayer(
-            in_size=concat_size,  # size of input/last output
-            out_size=memory_size,  # size of state
-            activation_fn=Layer.activation_sigmoid,
-            activation_fn_deriv=Layer.activation_sigmoid_deriv)
+                in_size=concat_size,  # size of input/last output
+                out_size=memory_size,  # size of state
+                activation_fn=Layer.activation_sigmoid,
+                activation_fn_deriv=Layer.activation_sigmoid_deriv)
         # Uncomment for output layer
-        self.output_layer = Layer(
+        """self.output_layer = Layer(
             in_size=memory_size,
             out_size=out_size or in_size,
             activation_fn=Layer.activation_linear,
-            activation_fn_deriv=Layer.activation_linear_deriv)
+            activation_fn_deriv=Layer.activation_linear_deriv)"""
         self.pending_updates = LSTMLayerPendingUpdates(in_size, memory_size)
         self.size = memory_size
         self.in_size = in_size
@@ -55,42 +57,31 @@ class LSTMLayer(object):
 
     def feed(self, input_data, caching_depth=1):
         assert caching_depth > 0, "caching_depth must be at least 1 (for recursive input)!"
-        remove_cache = False
         debug("feed(" + str(input_data) + ")")
         debug("caching_depth: " + str(len(self.caches)) + "/" + str(caching_depth))
-        #print("ff input shape: " + str(np.shape(input_data)) + " - last output shape: " + str(np.shape(self.last_cache.predecessor.output_values)))
-        data = np.concatenate([input_data, self.last_cache.predecessor.output_values])
+        concat_in = np.concatenate([input_data, self.last_cache.predecessor.output_values])
         if caching_depth <= len(self.caches):
             self.first_cache.successor.remove()
             self.caches.pop(0)
-        """self.caches.append(LSTMLayerCache())
-        cache = self.caches[-1]
-        if len(self.caches) == 1:
-            cache.predecessor = self.first_cache
-            self.first_cache.successor = cache
-
-        cache.predecessor = self.last_cache.predecessor
-        self.last_cache.predecessor = cache
-        cache.successor = self.last_cache"""
 
         self.last_cache.insert_before(LSTMLayerCache())
         cache = self.last_cache.predecessor
         self.caches.append(cache)
 
         cache.input_values = input_data
-        cache.concatenated_input = data
+        cache.concatenated_input = concat_in
         # update forget gate
 
-        cache.forget_gate_results = self.forget_gate_layer.feed(data)
-        cache.input_gate_results = self.input_gate_layer.feed(data)
-        cache.update_values_layer_results = self.update_values_layer.feed(data)
-        cache.output_gate_results = self.output_gate_layer.feed(data)
+        cache.forget_gate_results = self.forget_gate_layer.feed(concat_in)
+        cache.input_gate_results = self.input_gate_layer.feed(concat_in)
+        cache.update_values_layer_results = self.update_values_layer.feed(concat_in)
+        cache.output_gate_results = self.output_gate_layer.feed(concat_in)
 
         # calculate state update values
         ##print("ff update values shape: " + str(np.shape(self.cache[-1].update_values)) + " - input gate shape: " + str(np.shape(self.cache[-1].input_gate)))
         update_values = np.multiply(
-            cache.input_gate_results,
-            cache.update_values_layer_results)
+                cache.input_gate_results,
+                cache.update_values_layer_results)
         # apply forget layer and apply state update values
         ##print("ff forget gate: " + str(self.cache[-1].forget_gate))
         cache.state = cache.predecessor.state * self.last_cache.predecessor.forget_gate_results \
@@ -102,8 +93,9 @@ class LSTMLayer(object):
         cache.output_values = Layer.activation_tanh(cache.state) * cache.output_gate_results
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
         # Uncomment for output layer:
-        cache.final_output_values = self.output_layer.feed(cache.output_values)
-        return cache.final_output_values
+        # cache.final_output_values = self.output_layer.feed(cache.output_values)
+        # cache.final_output_values = cache.output_values
+        return cache.output_values
 
     def learn_recursive(self, cache, target_outputs, loss_total=0, learning_rate=0.01):
         debug("learn_rec(" + str(target_outputs) + ")")
@@ -111,44 +103,36 @@ class LSTMLayer(object):
             return loss_total
         # calculate loss and cumulative loss but keep loss for t+1 (last loss)
         target = target_outputs[-1]
-        loss_total += self.loss_function(cache.final_output_values[:], target)
+        loss_total += self.loss_function(cache.output_values, target)
 
         # Uncomment for output layer
-        delta_final_output = cache.final_output_values - target
-        loss_output = np.dot(
+        # delta_final_output = target - cache.final_output_values
+        """loss_output = np.dot(
                 self.output_layer.weights.T,
-                delta_final_output)
-
+                delta_final_output)"""
+        loss_output = 2 * (cache.output_values - target)
         loss_output += cache.successor.loss_output
-        #loss_output += 2 * (cache.output_values - target)
         debug("loss_output: " + str(np.shape(loss_output))
-            + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
+              + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
 
         last_loss_state = cache.successor.loss_state
-
-        #print("\noutput_layer_weights: " + str(np.shape(self.output_layer.weights))
-        #      + "\nloss_output" + str(np.shape(loss_output)))
 
         delta_state = cache.output_gate_results * loss_output + last_loss_state
 
         delta_output_gate = self.output_gate_layer.activation_deriv(
-            cache.output_gate_results) * cache.state * loss_output
+                cache.output_gate_results) * cache.state * loss_output
 
         delta_input_gate = self.input_gate_layer.activation_deriv(
-            cache.input_gate_results) * cache.update_values_layer_results * delta_state
+                cache.input_gate_results) * cache.update_values_layer_results * delta_state
 
         delta_update_values_layer = self.update_values_layer.activation_deriv(
-            cache.update_values_layer_results) * cache.input_gate_results * delta_state
+                cache.update_values_layer_results) * cache.input_gate_results * delta_state
 
         delta_forget_gate = self.forget_gate_layer.activation_deriv(
-            cache.forget_gate_results) * cache.predecessor.state * delta_state
+                cache.forget_gate_results) * cache.predecessor.state * delta_state
 
-        #print("delta_FG: " + str(np.shape(delta_forget_gate)))
         concat_in = cache.concatenated_input
 
-        """print("input weights shape: " + str(np.shape(self.pending_updates.input_gate_weights)))
-        print("input delta shape: " + str(np.shape(delta_input_gate)))
-        print("concat in shape: " + str(np.shape(concat_in)))"""
         self.pending_updates.input_gate_weights += \
             np.outer(delta_input_gate, concat_in)
         self.pending_updates.forget_gate_weights += \
@@ -158,42 +142,25 @@ class LSTMLayer(object):
         self.pending_updates.update_values_layer_weights += \
             np.outer(delta_update_values_layer, concat_in)
 
-        # Uncomment for output layer
-        """debug("\ndelta_final_output: " + str(np.shape(delta_final_output))
-              + "\noutput_values: " + str(np.shape(cache.output_values))
-              + "\npending_weight_updates: " + str(np.shape(self.pending_updates.output_layer_weights)))"""
-        self.pending_updates.output_layer_weights += \
-            np.outer(cache.output_values, delta_final_output)
-
-        """print("input delta shape: " + str(np.shape(delta_input_gate)))
-        print("input delta: " + str(np.reshape(delta_input_gate, (3,))))
-        print("input_gate_biases pending: " + str(self.pending_updates.input_gate_biases))"""
         self.pending_updates.input_gate_biases += np.ravel(delta_input_gate)
         self.pending_updates.forget_gate_biases += np.ravel(delta_forget_gate)
         self.pending_updates.output_gate_biases += np.ravel(delta_output_gate)
         self.pending_updates.update_values_layer_biases += np.ravel(delta_update_values_layer)
 
-        #TODO: compute bottom diff?
         delta_concatinated_input = np.zeros_like(concat_in) \
-            + np.dot(self.input_gate_layer.weights.T, delta_input_gate)\
-            + np.dot(self.forget_gate_layer.weights.T, delta_forget_gate)\
-            + np.dot(self.output_gate_layer.weights.T, delta_output_gate)\
-            + np.dot(self.update_values_layer.weights.T, delta_update_values_layer)
+                                   + np.dot(self.input_gate_layer.weights.T, delta_input_gate) \
+                                   + np.dot(self.forget_gate_layer.weights.T, delta_forget_gate) \
+                                   + np.dot(self.output_gate_layer.weights.T, delta_output_gate) \
+                                   + np.dot(self.update_values_layer.weights.T, delta_update_values_layer)
 
         cache.loss_state = delta_state * cache.forget_gate_results
         cache.loss_input = delta_concatinated_input[:self.in_size]
         cache.loss_output = delta_concatinated_input[self.in_size:]
-        debug("concat_in: " + str(np.shape(concat_in))
-              + "\ndelta_concat_in: " + str(np.shape(delta_concatinated_input))
-              + "\nin_size: " + str(self.in_size)
-              + "\nnew loss_output" + str(np.shape(cache.loss_output)))
 
-        #print("calling learn_recursive with targets = " + str(target_outputs[:-1]))
         return self.learn_recursive(cache.predecessor, target_outputs[:-1], loss_total)
 
     def learn(self, target_outputs, learning_rate=0.001):
         debug("learn(" + str(target_outputs) + ")")
-        #self.last_cache.loss_output = (self.last_cache.predecessor.output_values - target_outputs[-1])
         loss = self.learn_recursive(self.last_cache.predecessor, target_outputs, learning_rate)
         self.apply_training(learning_rate)
         return loss
@@ -201,8 +168,6 @@ class LSTMLayer(object):
     def apply_training(self, learning_rate):
         p_updates = self.pending_updates
         lr = learning_rate
-        #print("FG weights" + str(np.shape(self.forget_gate_layer.weights)))
-        #print("FG weight updates" + str(np.shape(p_updates.forget_gate_weights)))
         self.forget_gate_layer.weights -= lr * p_updates.forget_gate_weights
         self.input_gate_layer.weights -= lr * p_updates.input_gate_weights
         self.update_values_layer.weights -= lr * p_updates.update_values_layer_weights
@@ -212,6 +177,17 @@ class LSTMLayer(object):
         self.update_values_layer.biases -= lr * p_updates.update_values_layer_biases
         self.output_gate_layer.biases -= lr * p_updates.output_gate_biases
         p_updates.reset()
+
+        for matrix in [
+                self.forget_gate_layer.weights,
+                self.input_gate_layer.weights,
+                self.update_values_layer.weights,
+                self.output_gate_layer.weights,
+                self.forget_gate_layer.biases,
+                self.input_gate_layer.biases,
+                self.update_values_layer.biases,
+                self.output_gate_layer.biases]:
+            np.clip(matrix, -5, 5, out=matrix)
 
     def save(self, directory):
         self.forget_gate_layer.save(os.path.join(directory, "forget_gate.npz"))
@@ -236,6 +212,17 @@ class LSTMLayer(object):
     def euclidean_loss_function(cls, predicted, target):
         return (predicted - target) ** 2
 
+    def visualize(self):
+        KTimage.exporttiles(self.input_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_Input_1_0.pgm",
+                            1, self.size)
+        KTimage.exporttiles(self.forget_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_Forget_2_0.pgm",
+                            1, self.size)
+        KTimage.exporttiles(self.update_values_layer.weights, self.in_size + self.size, 1,
+                            "visualize/obs_Update_3_0.pgm", 1, self.size)
+        KTimage.exporttiles(self.output_gate_layer.weights, self.in_size + self.size, 1, "visualize/obs_Output_4_0.pgm",
+                            1, self.size)
+        # KTimage.exporttiles(self.output_layer.weights, self.size, 1, "visualize/obs_O_0_1.pgm", 1, self.output_layer.size)
+
 
 class LSTMLayerPendingUpdates(object):
     def __init__(self, in_size, out_size):
@@ -257,4 +244,3 @@ class LSTMLayerPendingUpdates(object):
     @classmethod
     def activation_fn_forget_gate(cls, x):
         return Layer.activation_sigmoid(x)
-

@@ -11,8 +11,8 @@
 
 
 import numpy
-import Image
-#import pylab
+import sys
+PYTHONVERSION = sys.version[0] # Python version "2" or "3" -- global variable (string, not int!)
 
 def importimage (filename):
 
@@ -22,7 +22,7 @@ def importimage (filename):
 
     # file key: only "P2" (greyscale as readable ascii) or "P5" (greyscale as machine code characters)
     format = f.readline()[0:2]
-    print "opening ", filename, " image format is ", format
+    print ("opening {}  image format is {}".format(filename,format))
 
     # next line
     line = f.readline()
@@ -37,7 +37,7 @@ def importimage (filename):
         else:
             highS = 255.0
             lowS = 0.0
-        print "highS=", highS, " lowS=", lowS
+        print ("highS={} lowS={}".format(highS,lowS))
 
         # next line
         line = f.readline()
@@ -45,14 +45,14 @@ def importimage (filename):
     # get the sizes of the image
     parts = line.split()
     width, height = int(parts[0]), int(parts[1])
-    print "width=", width, "height=", height
+    print ("width={} height={}".format(width,height))
 
     # next line (says the maximum value that the data are scaled to, i.e. the brightness value that is to be displayed as white)
     line = f.readline()
     maxchar = int(line)
     if maxchar != 255 and maxchar != 1:
-        print "warning: maxchar is not 255"
-    print "maxchar=", maxchar, " now reading data"
+        print ("warning: maxchar is not 255")
+    print ("maxchar={}  now reading data".format(maxchar))
 
     # now read the data
     data = f.read()
@@ -62,17 +62,17 @@ def importimage (filename):
     values = numpy.zeros(height*width)
     if  format == "P5":
         if len(data) != height*width:
-            print "len(data) does not fit height*width!"
+            print ("len(data) does not fit height*width!")
         for i in range(len(data)):
             values[i] = float(ord(data[i])) / float(maxchar) * (highS - lowS) + lowS
     elif format == "P2":
         liste = data.split()
         if len(liste) != height*width:
-            print "len(data liste) does not fit height*width!"
+            print ("len(data liste) does not fit height*width!")
         for i in range(len(liste)):
             values[i] = float(int(liste[i])) / float(maxchar) * (highS - lowS) + lowS
     else:
-        print "format ", format, " not recognized!"
+        print ("format {} not recognized!".format(format))
 
     return values, height, width
 
@@ -120,7 +120,7 @@ def exporttiles (X, h, w, filename, x=None, y=None):
 
     xy, hw = numpy.shape(X)
     if  (xy != x*y) or (hw != h*w):
-        print 'imagetiles: size error when exporting to ', filename
+        print ('imagetiles: size error')
 
     Y = numpy.zeros((frame + x*(h+frame), frame + y*(w+frame)))
 
@@ -141,7 +141,7 @@ def exporttiles (X, h, w, filename, x=None, y=None):
     #im.save(filename, cmap=pylab.cm.jet)  # seems to ignore the colormap
     #exportinfo (filename,  numpy.max(X), numpy.min(X))
 
-    f = open(filename, 'wb')
+    f = open(filename, 'w')
     # write the header
     f.write("P5\n")
     f.write('# highS: %.6f  lowS: %.6f\n' % (numpy.max(X), numpy.min(X)))
@@ -149,16 +149,22 @@ def exporttiles (X, h, w, filename, x=None, y=None):
     line = str(width) + " " + str(height) + "\n"
     f.write(line)
     f.write("255\n") # values range from 0 to 255
+    f.close()
     # write the data
-    c = ''
     if  numpy.max(Y) != numpy.min(Y):
        factor = 255.0 / (numpy.max(Y) - numpy.min(Y))
     else:
        factor = 0.0
     Y = (Y - numpy.min(Y)) * factor
+    c = ''
     for i in range(height):
         for j in range(width):
-            val_ch = chr(int(Y[i][j]))
-            c += val_ch
-    f.write(c)
+            c += chr(int(Y[i][j]))
+    f = open(filename, 'r+b')
+    f.seek(0,2)
+    if PYTHONVERSION == "2":
+        f.write(c)
+    else:
+        f.write(c.encode("ISO-8859-1"))
     f.close()
+

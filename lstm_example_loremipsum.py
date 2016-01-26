@@ -7,8 +7,11 @@ input_data = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam"
 
 sequence_length = 50  # 'length' of memory
 learning_rate = 0.001
-data_set = set(input_data)# + str.join("", [chr(x) for x in range(90 - 18)]))
 memory_size = 100
+#data_set = set(input_data) + str.join("", [chr(x) for x in range(90 - 18)])
+data_set = set(input_data)
+data_set = data_set.union(set([(x + 256) for x in range(abs(memory_size - len(set(data_set))))]))
+#memory_size = len(data_set)
 
 _data_to_int = {dat: i for i, dat in enumerate(data_set)}
 _int_to_data = {i: dat for i, dat in enumerate(data_set)}
@@ -33,8 +36,8 @@ lstm.int_to_data = int_to_data
 lstm.data_to_int = data_to_int
 
 lstm.populate(data_set, layer_sizes=[memory_size])
-lstm.load("lstm_loremipsum_save")
-progress = 551
+#lstm.load("lstm_loremipsum_save")
+progress = 1
 lstm.train(
         encoded_data,
         sequence_length,

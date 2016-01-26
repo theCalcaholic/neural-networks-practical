@@ -20,8 +20,9 @@ data_store.set_input_text(input_text)
 #data_store.load_file("lstm_training_data/vanishing_vocables_de.txt")
 #data_store.load_file("lstm_training_data/loremipsum.txt")
 data_store.configure({
-    "memory_size": 200,
-    "sequence_length": 15
+    "memory_size": 100,
+    "sequence_length": 15,
+    "extend_alphabet": False
 })
 
 samples = data_store.get_samples()
@@ -31,10 +32,11 @@ lstm = LSTMNetwork()
 
 #print(str(len(data_set)) + "\nmemsize " + str(memory_size) + "\nmaxInt")
 
+lstm.use_output_layer = False
+lstm.use_output_slicing = False
 lstm.populate(data_store.data_set,
               layer_sizes=[data_store.config["memory_size"]])
 #lstm.load("lstm_wordset_save")
-lstm.use_output_layer = False
 lstm.decode = data_store.decode_data_list
 lstm.encode = data_store.encode_string
 lstm.train(

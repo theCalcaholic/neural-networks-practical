@@ -22,6 +22,8 @@ class LSTMNetwork:
         self.lstm_layer2 = None
         self.encode = None
         self.decode = None
+        self.use_output_layer = False
+        self.use_output_slicing = False
 
     def populate(self, char_set, layer_sizes=None):
         layer_sizes = layer_sizes or self.layers_spec or []
@@ -40,6 +42,11 @@ class LSTMNetwork:
             in_size=len(self.chars),
             out_size=len(self.chars),
             memory_size=layer_sizes[0])
+        self.lstm_layer.use_output_layer = self.use_output_layer
+        self.lstm_layer.use_output_slicing = self.use_output_slicing
+        self.lstm_layer2.use_output_layer = self.use_output_layer
+        self.lstm_layer2.use_output_slicing = self.use_output_slicing
+
         """self.output_layer = Layer(
             in_size=self.lstm_layer.size,
             out_size=len(self.chars))

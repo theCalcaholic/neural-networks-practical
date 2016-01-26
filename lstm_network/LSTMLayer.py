@@ -27,15 +27,12 @@ class LSTMLayer(object):
                 out_size=memory_size,  # size of state
                 activation_fn=Layer.activation_tanh,
                 activation_fn_deriv=Layer.activation_tanh_deriv)
-        self.output_gate_layer = Layer(
+        self.output_gate_layer = BiasedLayer(
                 in_size=concat_size,  # size of input/last output
                 out_size=memory_size,  # size of state
                 activation_fn=Layer.activation_sigmoid,
                 activation_fn_deriv=Layer.activation_sigmoid_deriv)
-
-        self.use_output_layer = False
-        self.use_output_slicing = False
-
+        # Uncomment for output layer
         self.output_layer = Layer(
             in_size=memory_size,
             out_size=out_size,
@@ -96,12 +93,10 @@ class LSTMLayer(object):
         cache.output_values = Layer.activation_tanh(cache.state) * cache.output_gate_results
         ##print("ff output shape: " + str(np.shape(self.cache[-1].output_values)) + "\nff " + str(self.cache[-1].output_values))
         # Uncomment for output layer:
-        if self.use_output_layer:
-            cache.final_output_values = self.output_layer.feed(cache.output_values)
-        elif self.use_output_slicing:
-            cache.final_output_values = cache.output_values[:self.out_size]
-        else:
-            cache.final_output_values = cache.output_values
+        cache.final_output_values = self.output_layer.feed(cache.output_values)
+
+        #cache.final_output_values = cache.output_values[:self.out_size]
+        #cache.final_output_values = cache.output_values
         return cache.final_output_values
 
     def learn_recursive(self, cache, target_outputs, loss_total=0, learning_rate=0.01):
@@ -116,15 +111,11 @@ class LSTMLayer(object):
 
         # Uncomment for output layer
         delta_final_output = cache.final_output_values - target
-        if self.use_output_layer:
-            loss_output = np.dot(
-                    self.output_layer.weights.T,
-                    delta_final_output)
-        elif self.use_output_slicing:
-            loss_output = np.zeros((self.size, 1))
-            loss_output[:self.out_size] = 2 * delta_final_output
-        else:
-            loss_output = 2 * delta_final_output
+        loss_output = np.dot(
+                self.output_layer.weights.T,
+                delta_final_output)
+        #loss_output = np.zeros((self.size, 1))
+        #loss_output[:self.out_size] = 2 * (cache.final_output_values - target)
         loss_output += cache.successor.loss_output
         debug("loss_output: " + str(np.shape(loss_output))
               + "suc_loss_output: " + str(np.shape(cache.successor.loss_output)))
@@ -158,9 +149,8 @@ class LSTMLayer(object):
             np.outer(delta_output_gate, concat_in)
         self.pending_updates.update_values_layer_weights += \
             np.outer(delta_update_values_layer, concat_in)
-        if self.use_output_layer:
-            self.pending_updates.output_layer_weights += \
-                np.outer(delta_final_output, cache.output_values)
+        self.pending_updates.output_layer_weights += \
+            np.outer(delta_final_output, cache.output_values)
 
         self.pending_updates.input_gate_biases += np.ravel(delta_input_gate)
         self.pending_updates.forget_gate_biases += np.ravel(delta_forget_gate)
@@ -196,8 +186,7 @@ class LSTMLayer(object):
         self.input_gate_layer.biases -= lr * p_updates.input_gate_biases
         self.update_values_layer.biases -= lr * p_updates.update_values_layer_biases
         self.output_gate_layer.biases -= lr * p_updates.output_gate_biases
-        if self.use_output_layer:
-            self.output_layer.weights -= lr * p_updates.output_layer_weights
+        self.output_layer.weights -= lr * p_updates.output_layer_weights
         p_updates.reset()
 
         for matrix in [
@@ -217,14 +206,12 @@ class LSTMLayer(object):
         self.input_gate_layer.save(os.path.join(directory, "input_gate.npz"))
         self.output_gate_layer.save(os.path.join(directory, "output_gate.npz"))
         self.update_values_layer.save(os.path.join(directory, "update_values_layer.npz"))
-        self.output_layer.save(os.path.join(directory, "output_layer.npz"))
 
     def load(self, directory):
         self.forget_gate_layer.load(os.path.join(directory, "forget_gate.npz"))
         self.input_gate_layer.load(os.path.join(directory, "input_gate.npz"))
         self.output_gate_layer.load(os.path.join(directory, "output_gate.npz"))
         self.update_values_layer.load(os.path.join(directory, "update_values_layer.npz"))
-        self.output_layer.load(os.path.join(directory, "output_layer.npz"))
 
     @classmethod
     def get_output_error(cls, prediction, target):

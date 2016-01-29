@@ -87,7 +87,7 @@ class LSTMNetwork:
 
         return outputs
 
-    def train(self, inputs_list, seq_length, iterations=100, learning_rate=0.1, save_dir="lstm_save", iteration_start=0):
+    def train(self, inputs_list, seq_length, iterations=100, target_loss=0, learning_rate=0.1, save_dir="lstm_save", iteration_start=0):
         #print("inputs_list: " + str(inputs_list))
         loss = 1.0
         loss_diff = 0
@@ -108,7 +108,7 @@ class LSTMNetwork:
                 #print(self.decode(inputs) + " => " + self.decode(outputs))
             loss = np.average(loss)
 
-            if not i % 10:
+            if not i % 10 or loss < target_loss:
                 self.lstm_layer.save(os.path.join(os.getcwd(), save_dir))
                 self.lstm_layer.visualize()
                 loss_diff -= loss
@@ -130,7 +130,9 @@ class LSTMNetwork:
                         print("freestyle: " + free)"""
 
                 loss_diff = loss
-                time.sleep(1)
+
+                if loss < target_loss:
+                    return
 
     def roll_weights(self):
         self.populate(self.chars, [self.lstm_layer.size])

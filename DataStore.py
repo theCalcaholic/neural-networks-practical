@@ -1,9 +1,10 @@
 import numpy as np
 import random
-
+#from scimage.io import imread
 
 class DataStore(object):
     def __init__(self):
+        self.raw_input = None
         self.input_data = None
         self.data_set = None
         self.data_to_int = None
@@ -19,6 +20,10 @@ class DataStore(object):
     def load_file(self, path_to_textfile):
         self.raw_input = open(path_to_textfile, 'r').read()
 
+    #def load_img(self, path_to_img):
+    #    self.raw_input = imread(path_to_img, as_grey=True, flatten=True)
+
+
     def set_input_text(self, text):
         self.raw_input = [text]
 
@@ -29,14 +34,14 @@ class DataStore(object):
     def length(self):
         return len(self.tag_set)
 
-    def decode_data(self, data):
+    def decode_char(self, data):
         char = self.int_to_data[np.argmax(data)]
         return "#" if char > 255 else chr(char)
 
-    def decode_data_list(self, data_list):
+    def decode_char_list(self, data_list):
         decoded = ""
         for dat in data_list:
-            decoded += self.decode_data(dat)
+            decoded += self.decode_char(dat)
         return decoded
 
     def encode_char(self, char):
@@ -44,16 +49,22 @@ class DataStore(object):
         encoded[self.data_to_int[ord(char)]] = 1
         return encoded
 
-    def encode_string(self, string_in):
+    def encode_char_list(self, string_in):
         encoded_data = []
         for i in xrange(len(string_in)):
             # encode character in 1-of-k representation
             encoded_data.append(self.encode_char(string_in[i]))
         return encoded_data
 
+    def encode_img(self, img):
+        return img
+
+    def decode_img(self, img_list):
+        return np.reshape(img_list, self.img_width, self.img_height)
+
     def get_samples(self):
         self.generate_data()
-        return self.encode_string(''.join(self.raw_input))
+        return self.encode_char_list(''.join(self.raw_input))
 
     def generate_data(self):
         self.data_set = set([ord(x) for x in ''.join(self.raw_input)])

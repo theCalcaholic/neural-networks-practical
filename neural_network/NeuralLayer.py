@@ -5,9 +5,9 @@ from lstm_network.utils import debug
 
 class NeuralLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
-        self.weights = numpy.random.uniform(-0.1, 0.1, (out_size, in_size)).astype(numpy.float64)
+        self.weights = numpy.random.uniform(-0.001, 0.001, (out_size, in_size)).astype(numpy.float64)
         if not hasattr(self, 'biases'):
-            self.biases = numpy.random.uniform(0.0, 1.0, (out_size)).astype(numpy.float64)
+            self.biases = numpy.zeros(out_size).astype(numpy.float64)
         self.activation = activation_fn
         self.activation_deriv = activation_fn_deriv
         self.size = out_size

@@ -1,16 +1,16 @@
-import numpy as np
 from lstm_network.LSTMNetwork import LSTMNetwork
-from lstm_network.utils import decode, encode
 from DataStore import DataStore
-import random
+import os
+import numpy as np
 
 config_list = {
     "lorem_ipsum_small": {
-        "memory_size": 400,
-        "sequence_length": 10,
+        "memory_size": 300,
+        "sequence_length": 30,
         "learning_rate": 0.1,
         "iterations": 10000,
-        "target_loss": 0.05
+        "target_loss": 0.05,
+        "use_output_layer": True
     }
 }
 
@@ -44,11 +44,12 @@ samples = data_store.get_samples()
 #print(str(encoded_data[-1]))
 lstm = LSTMNetwork()
 
-#print(str(len(data_set)) + "\nmemsize " + str(memory_size) + "\nmaxInt")
 
-lstm.use_output_layer = True
-lstm.populate(data_store.data_set,
-              layer_sizes=[data_store.config["memory_size"]])
+lstm.use_output_layer = config["use_output_layer"]
+lstm.populate(
+    in_size=np.shape(samples[0])[0],
+    out_size=np.shape(samples[0])[0],
+    layer_sizes=[data_store.config["memory_size"]])
 #lstm.load("lstm_wordset_save")
 
 lstm.decode = data_store.decode_char_list
@@ -60,4 +61,5 @@ lstm.train(
         iterations=config["iterations"],
         target_loss=config["target_loss"],
         learning_rate=config["learning_rate"],
-        save_dir="lstm_loremipsum_save")
+        save_dir=os.path.join(os.getcwd(), "lstm_loremipsum_save"),
+        dry_run=False)

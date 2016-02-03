@@ -1,6 +1,6 @@
 import numpy as np
 from lstm_network.LSTMNetwork import LSTMNetwork
-from lstm_network.utils import decode, encode
+from lstm_network.util import decode, encode
 
 
 input_data = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam"

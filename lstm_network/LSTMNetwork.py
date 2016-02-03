@@ -1,112 +1,211 @@
 import os
 import numpy as np
-from LSTMLayer import LSTMLayer
-import time
+from lstm_network.LSTMLayer import LSTMLayer
+from neural_network import NeuralLayer, CachingNeuralLayer
+import KTimage
+
 
 class LSTMNetwork:
 
     def __init__(self):
+        self.loss_function = LSTMNetwork.euclidean_loss_function
         self.layers_spec = None
-        self.layers = None
         self.populated = False
         self.trained = False
-        self.chars = None
-        self._int_to_data = None
-        self._data_to_int = None
-        self.state_history = None
-        self.learning_rate = 0.001
-        self.verbose = True
-        self.lstm_layer = None
-        self.encode = None
-        self.decode = None
-        self.use_output_layer = False
-        self.use_output_slicing = False
+        self.training_layers = []
+        self.prediction_layers = []
+        self.output_layer = None
+        self.config = {
+            "learning_rate": 0.001,
+            "verbose": False,
+            "use_output_layer": True,
+            "time_steps": 1,
+            "status_frequency": 10,
+            "save_dir": os.path.join(os.getcwd(), "lstm_save")
+        }
+        self.get_status = LSTMNetwork.get_status
 
     def populate(self, in_size, out_size, layer_sizes=None):
-        layer_sizes = layer_sizes or self.layers_spec or []
 
-        self.layers = []
-
-        self.lstm_layer = LSTMLayer(
+        self.training_layers.append(LSTMLayer(
             in_size=in_size,
+            memory_size=layer_sizes[0]
+        ))
+        for layer_size in layer_sizes[1:]:
+            self.training_layers.append(LSTMLayer(
+                in_size=in_size,
+                memory_size=layer_size
+            ))
+        self.output_layer = CachingNeuralLayer(
+            in_size=layer_sizes[-1],
             out_size=out_size,
-            memory_size=layer_sizes[0],
-            use_output_layer=self.use_output_layer)
+            activation_fn=NeuralLayer.activation_linear,
+            activation_fn_deriv=NeuralLayer.activation_linear_deriv
+        )
+        self.training_layers.append(self.output_layer)
+        for lstm_layer in self.training_layers[:-1]:
+            self.prediction_layers.append(LSTMLayer.get_convolutional_layer(
+                lstm_layer
+            ))
+        for layer in self.prediction_layers:
+            layer.learn = None
+        self.prediction_layers.append(
+            CachingNeuralLayer(
+                in_size=self.output_layer.in_size,
+                out_size=self.output_layer.size,
+                activation_fn=self.output_layer.activation,
+                activation_fn_deriv=self.output_layer.activation_deriv
+            )
+        )
+        self.prediction_layers[-1].weights = self.output_layer.weights
+        self.prediction_layers[-1].biases = self.output_layer.biases
         self.populated = True
 
-    def feedforward(self, inputs, caching_depth=1):
+    def feedforward(self, layers, inputs):
         if not self.populated:
             raise Exception("LSTM network must be populated first (Have a look at method LSTMNetwork.populate)!")
 
         outputs = []
-        # get initial state of all lstm layers
-        for data_in in inputs:
-            # feed forward through all layers
-            # get output of lstm network
-            outputs.append(self.lstm_layer.feed(data_in, caching_depth))
-            # get updated state from all lstm layers
+        for data in inputs:
+
+            for layer in layers:
+                data = layer.feed(
+                        input_data=data,
+                        time_steps=self.config["time_steps"]
+                    )
+            outputs.append(data)
 
         return outputs
 
-    def learn(self, targets, learning_rate):
-        losses = self.lstm_layer.learn(targets, learning_rate)
-        return losses
+    def learn(self, targets):
+        output_losses = []
+        cache = self.output_layer.first_cache.successor
+        pending_output_weight_updates = np.zeros((self.output_layer.size, self.output_layer.in_size))
+        error = np.zeros((self.output_layer.size, 1))
+        for target in targets:
+            output_losses.append(cache.output_values - target)
+            pending_output_weight_updates += np.outer(output_losses[-1], cache.input_values)
+            error += self.loss_function(cache.output_values, target)
+            cache = cache.successor
+            if cache.is_last_cache:
+                break
+        deltas = [
+            np.dot(self.output_layer.weights.T, output_loss)
+            for output_loss in output_losses]
+        self.output_layer.weights -= pending_output_weight_updates * self.config["learning_rate"]
 
-    def train(self, inputs_list, seq_length, iterations=100, target_loss=0, learning_rate=0.1, save_dir="lstm_save", iteration_start=0, dry_run=False):
+        for layer in self.training_layers[:-1]:
+            deltas = layer.learn(deltas, self.config["learning_rate"])
+
+        return error
+
+    def train(self, sequences, iterations=100, target_loss=0, iteration_start=0, dry_run=False):
         loss_diff = 0
-        self.lstm_layer.visualize("visualize")
+        self.visualize("visualize")
+
+        if self.config["verbose"]:
+            print("Start training of network.")
         raw_input("Press Enter to proceed...")
+
         for i in xrange(iteration_start, iterations):
-            output_string = ""
-            input_string = ""
             loss_list = []
-            for inputs, targets in zip(
-                    [inputs_list[j:j+seq_length] for j in xrange(0, len(inputs_list) - 1, seq_length)],
-                    [inputs_list[j:j+seq_length] for j in xrange(1, len(inputs_list), seq_length)]):
-                outputs = self.feedforward(inputs, seq_length)
-                loss = self.learn(targets, learning_rate)
-                output_string += self.decode(outputs)
-                input_string += self.decode(targets)
+            output_list = []
+            target_list = []
+
+            for sequence in sequences:
+                inputs = sequence[:-1]
+                targets = sequence[1:]
+
+                outputs = self.feedforward(self.training_layers, inputs)
+                loss = self.learn(targets)
+
+                output_list.extend(outputs)
+                target_list.extend(targets)
                 loss_list.append(loss)
-                #self.lstm_layer.clear_cache()
             iteration_loss = np.average(loss_list)
+            #print(str(iteration_loss))
 
-            if not i % 10 or iteration_loss < target_loss:
+            if not (i + 1) % self.config["status_frequency"] \
+                    or iteration_loss < target_loss:
                 if dry_run:
-                    self.load(os.path.join(os.getcwd(), save_dir))
+                    self.load()
                 else:
-                    self.lstm_layer.save(os.path.join(os.getcwd(), save_dir))
-                self.lstm_layer.visualize("visualize")
+                    self.save()
+                self.visualize("visualize")
                 loss_diff -= iteration_loss
-                if self.verbose:
-                    print("\nIteration " + str(i) + " - learning rate: " + str(learning_rate) + "  ")
-                    print("loss: " + str(iteration_loss) + "  " +
-                          ("\\/" if loss_diff > 0 else ("--" if loss_diff == 0 else "/\\")) +
-                          " " + str(loss_diff)[1:])
-                    print("target: " + input_string.replace("\n", "\\n"))
-                    print("out:    " + output_string.replace("\n", "\\n"))
-                    """if not i % 100:
-                        self.lstm_layer2.load(save_dir)
-                        free = "a"
-                        for i in range(30):
-                            free_in = encode(ord(free[-1]), self.data_to_int, len(self.chars))
-                            free += decode(self.lstm_layer2.feed(free_in), self.int_to_data)
-                        print("freestyle: " + free)"""
-
+                if self.config["verbose"]:
+                    print(self.get_status(
+                        output_list,
+                        target_list,
+                        iteration=str(i),
+                        learning_rate=str(self.config["learning_rate"]),
+                        loss=str(iteration_loss),
+                        loss_difference=str(loss_diff)
+                    ))
                 loss_diff = iteration_loss
                 if iteration_loss < target_loss:
                     print("Target loss reached! Training finished.")
-                    self.lstm_layer.clear_cache()
+                    for layer in self.lstm_training_layers:
+                        layer.clear_cache()
+                    self.trained = True
                     return
+        self.trained = True
 
-    def roll_weights(self):
-        self.populate(self.chars, [self.lstm_layer.size])
+    def reroll_weights(self):
+        self.populate(
+            in_size=self.lstm_training_layers[0].in_size,
+            out_size=self.output_layer.size,
+            layer_sizes=[layer.size for layer in self.lstm_training_layers])
 
-    def predict(self, inputs, seq_length=1):
-        outputs = self.feedforward(inputs, seq_length)
-        return outputs
+    def predict(self, input_vector):
 
+        outputs = self.feedforward(self.prediction_layers, [input_vector])
+        return outputs[-1]
 
-    def load(self, path):
-        self.lstm_layer.load(path)
+    def save(self, path=None):
+        if path is None:
+            base_path = os.path.join(os.getcwd(), self.config["save_dir"])
+        else:
+            base_path = path
+        for idx, layer in enumerate(self.training_layers[:-1]):
+            layer.save(os.path.join(base_path, "layer_" + str(idx)))
+        self.training_layers[-1].save(os.path.join(base_path, "output_layer.npz"))
 
+    def load(self, path=None):
+        if path is None:
+            base_path = os.path.join(os.getcwd(), self.config["save_dir"])
+        else:
+            base_path = path
+        for idx, layer in enumerate(self.training_layers[:-1]):
+            layer.load(os.path.join(base_path, "layer_" + str(idx)))
+        self.training_layers[-1].load(os.path.join(base_path, "output_layer.npz"))
+
+    @classmethod
+    def get_status(self, output_list, target_list, iteration="", learning_rate="", loss="", loss_difference=""):
+        status = \
+            "Iteration: " + iteration + "\n" + \
+            "Learning rate: " + learning_rate + "\n" + \
+            "loss: " + loss + " (" + \
+                (loss_difference if loss_difference[0] == "-" else "+" + loss_difference) + ")\n" + \
+            "Target: " + str(target_list) + "\n" \
+            "Output: " + str(output_list) + "\n\n"
+        return status
+
+    def freestyle(self, seed, length):
+        freestyle = [seed]
+        for i in range(length):
+            input_vector = np.array(freestyle[-1])
+            freestyle.append(self.predict(input_vector))
+        return freestyle
+
+    def configure(self, config):
+        for key in set(self.config.keys()) & set(config.keys()):
+            self.config[key] = config[key]
+
+    @classmethod
+    def euclidean_loss_function(cls, predicted, target):
+        return (predicted - target) ** 2
+
+    def visualize(self, path):
+        for idx, layer in enumerate(self.training_layers):
+            layer.visualize(path, str(idx))

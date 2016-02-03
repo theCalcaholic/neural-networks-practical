@@ -7,6 +7,7 @@ from lstm_network import util
 
 
 ### Example status output after 500 iterations on the training set found in ./lstm_training_data/loremipsum.txt
+### using 1 lstm layer of size 200 and time_steps=10
 """
 Iteration 500
 Learning rate: 0.01
@@ -17,18 +18,19 @@ Output: srem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy 
 freestyle: juauee emusuari d iasooeutd cor
 """
 
+### Most configuration options can be set here...
 config = {
-    "memory_sizes": [150, 100],
-    "time_steps": 20,
-    "learning_rate": 0.1,
-    "iterations": 10000,
-    "target_loss": 0.01,
-    "use_output_layer": True,
-    "verbose": True,
-    "status_frequency": 10,
-    "save_dir": os.path.join(os.getcwd(), "lstm_loremipsum_save")
+    "memory_sizes": [150, 100],  # list of lstm layer sizes. For each size a corresponding lstm layer will be created
+    "time_steps": 20,  # number of inputs over which to learn backwards in time
+    "learning_rate": 0.01,  # self explanatory
+    "iterations": 10000,  # maximum iterations to train. Will terminate training once reached
+    "target_loss": 0.01,  # minimum loss to train for. Will terminate training once reached
+    "verbose": True,  # Print status information after each <status_frequency> iterations
+    "status_frequency": 10,  # frequency to print status (in iterations) if verbose is set to True
+    "save_dir": os.path.join(os.getcwd(), "lstm_loremipsum_save")  # path to save/load network weights/biases state to
 }
 
+# print/hide debug information
 util.Logger.DEBUG = False
 
 # initialize data store object
@@ -45,11 +47,10 @@ data_store.set_input_text(input_text)
 #data_store.load_file("lstm_training_data/vanishing_vocables_de.txt")
 #data_store.load_file("lstm_training_data/loremipsum.txt")
 
-
+# apply config to data_store
 data_store.configure({
     "memory_size": config["memory_sizes"][0],
-    "sequence_length": config["time_steps"],
-    "extend_alphabet": False #only necessary if output layer is disabled
+    "sequence_length": config["time_steps"]
 })
 
 # samples is a generator object for sequences of length data_store.config['time_steps']
@@ -61,12 +62,15 @@ samples = data_store.samples()
 
 lstm = LSTMNetwork()
 
+# apply configuration to lstm config
 lstm.configure(config)
+# tell the network the function to use for printing status information while training
 lstm.get_status = util.get_status_function(data_store, lstm, config["status_frequency"])
+# Populate layers
 lstm.populate(
-    in_size=np.shape(samples[0][0])[0],
-    out_size=np.shape(samples[0][0])[0],
-    layer_sizes=config["memory_sizes"])
+    in_size=np.shape(samples[0][0])[0],  # input size of first lstm unit - according to input vector size
+    out_size=np.shape(samples[0][0])[0],  # output size of output layer - according to input/output vector size
+    memory_sizes=config["memory_sizes"])  # list of lstm unit sizes (memory unit sizes)
 
 # Uncomment to load previously saved network weights and biases from directory
 #lstm.load(config["save_dir"])
@@ -77,10 +81,12 @@ lstm.train(
         sequences=samples,
         iterations=config["iterations"],
         target_loss=config["target_loss"],
-        dry_run=False
+        dry_run=False  # weight updates won't be applied if set to True
 )
 
-# Generate string by feeding lstm network with it's own output:
+### Generate string by feeding lstm network with it's own output:
+# retrieve character from
 character = data_store.int_to_data[random.randint(0, data_store.length() - 1)]
 seed = data_store.encode_char(chr(character))
+# get 'freestyle' sample from character of length 100
 print(data_store.decode_char_list(lstm.freestyle(seed, 100)))

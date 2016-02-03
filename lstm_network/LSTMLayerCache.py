@@ -1,17 +1,25 @@
-
-class LayerCache(object):
+class LSTMLayerCache(object):
     """
-    caches the inputs, results and losses of an CachingNerualLayer's feedforward process.
+    caches the inputs, results and losses of an lstm layer feedforward process.
     Supports double linking (predecessor, successor)
     """
     def __init__(self):
         """initialize cache"""
         # inputs
         self.input_values = None
+        self.concatenated_input = None
         # results
+        self.output_gate_results = None
+        self.update_values_layer_results = None
+        self.input_gate_results = None
+        self.forget_gate_results = None
+        # state & output
+        self.state = None
         self.output_values = None
         # loss
-        self.loss = None
+        self.loss_output = 0
+        self.loss_state = 0
+        self.loss_input = 0
         # list implementation stuff
         self.predecessor = None
         self.successor = None

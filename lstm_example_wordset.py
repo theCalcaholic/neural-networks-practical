@@ -18,9 +18,9 @@ freestyle: juauee emusuari d iasooeutd cor
 """
 
 config = {
-    "memory_size": 200,
-    "time_steps": 10,
-    "learning_rate": 0.01,
+    "memory_sizes": [150, 100],
+    "time_steps": 20,
+    "learning_rate": 0.1,
     "iterations": 10000,
     "target_loss": 0.01,
     "use_output_layer": True,
@@ -47,7 +47,7 @@ data_store.set_input_text(input_text)
 
 
 data_store.configure({
-    "memory_size": config["memory_size"],
+    "memory_size": config["memory_sizes"][0],
     "sequence_length": config["time_steps"],
     "extend_alphabet": False #only necessary if output layer is disabled
 })
@@ -66,7 +66,7 @@ lstm.get_status = util.get_status_function(data_store, lstm, config["status_freq
 lstm.populate(
     in_size=np.shape(samples[0][0])[0],
     out_size=np.shape(samples[0][0])[0],
-    layer_sizes=[data_store.config["memory_size"]])
+    layer_sizes=config["memory_sizes"])
 
 # Uncomment to load previously saved network weights and biases from directory
 #lstm.load(config["save_dir"])

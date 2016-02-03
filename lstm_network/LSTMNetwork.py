@@ -2,7 +2,6 @@ import os
 import numpy as np
 from lstm_network.LSTMLayer import LSTMLayer
 from neural_network import NeuralLayer, CachingNeuralLayer
-import KTimage
 
 
 class LSTMNetwork:
@@ -33,7 +32,7 @@ class LSTMNetwork:
         ))
         for layer_size in layer_sizes[1:]:
             self.training_layers.append(LSTMLayer(
-                in_size=in_size,
+                in_size=self.training_layers[-1].size,
                 memory_size=layer_size
             ))
         self.output_layer = CachingNeuralLayer(
@@ -92,10 +91,13 @@ class LSTMNetwork:
         deltas = [
             np.dot(self.output_layer.weights.T, output_loss)
             for output_loss in output_losses]
+
+        #print("deltas 3: " + str(np.shape(deltas)))
         self.output_layer.weights -= pending_output_weight_updates * self.config["learning_rate"]
 
-        for layer in self.training_layers[:-1]:
+        for layer in reversed(self.training_layers[:-1]):
             deltas = layer.learn(deltas, self.config["learning_rate"])
+            #print("deltas x: " + str(np.shape(deltas)))
 
         return error
 
@@ -145,7 +147,7 @@ class LSTMNetwork:
                 loss_diff = iteration_loss
                 if iteration_loss < target_loss:
                     print("Target loss reached! Training finished.")
-                    for layer in self.lstm_training_layers:
+                    for layer in self.training_layers:
                         layer.clear_cache()
                     self.trained = True
                     return
@@ -153,9 +155,9 @@ class LSTMNetwork:
 
     def reroll_weights(self):
         self.populate(
-            in_size=self.lstm_training_layers[0].in_size,
+            in_size=self.training_layers[0].in_size,
             out_size=self.output_layer.size,
-            layer_sizes=[layer.size for layer in self.lstm_training_layers])
+            layer_sizes=[layer.size for layer in self.training_layers])
 
     def predict(self, input_vector):
 
@@ -207,5 +209,6 @@ class LSTMNetwork:
         return (predicted - target) ** 2
 
     def visualize(self, path):
-        for idx, layer in enumerate(self.training_layers):
-            layer.visualize(path, str(idx))
+        for idx, layer in enumerate(self.training_layers[:-1]):
+            layer.visualize(path, idx + 1)
+        self.output_layer.visualize(os.path.join(path, "obs_OutputL_1_0.pgm"))

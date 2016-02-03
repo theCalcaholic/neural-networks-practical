@@ -2,9 +2,13 @@ import numpy as np
 from lstm_network.util import Logger
 import KTimage
 import os
+from lstm_network import util
 
 class NeuralLayer(object):
     def __init__(self, in_size, out_size, activation_fn, activation_fn_deriv):
+        util.Logger.debug("create Neural Layer: \n" + \
+                          "  in_size: " + str(in_size) + "\n" + \
+                          "  out_size: " + str(out_size))
         self.weights = np.random.uniform(-0.001, 0.001, (out_size, in_size)).astype(np.float64)
         if not hasattr(self, 'biases'):
             self.biases = np.zeros(out_size).astype(np.float64)
@@ -38,9 +42,11 @@ class NeuralLayer(object):
         self.weights = np_saved['weights']
         self.biases = np_saved['biases']
 
-    def visualize(self, path, prefix=""):
+    def visualize(self, path):
+        if not os.path.isdir(os.path.dirname(path)):
+            os.makedirs(os.path.dirname(path))
         KTimage.exporttiles(self.weights, self.in_size,
-                            1, os.path.join(path, "obs_" + prefix + "NLayer_5_0.pgm"), 1, self.size)
+                            1, path, 1, self.size)
 
     @classmethod
     def activation_linear(cls, x):

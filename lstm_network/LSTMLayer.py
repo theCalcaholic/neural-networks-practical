@@ -93,17 +93,17 @@ class LSTMLayer(object):
         # Uncomment for output layer:
         return cache.output_values
 
-    def learn_recursive(self, cache, deltas, loss_total=0):
+    def learn_recursive(self, cache, deltas):
         if len(deltas) == 0 or cache.is_first_cache:
-            return loss_total
+            return
         # calculate loss and cumulative loss but keep loss for t+1 (last loss)
         delta = deltas[-1]
-        #loss_total += delta ** 2
 
         loss_output = delta + cache.successor.loss_output
 
         last_loss_state = cache.successor.loss_state
 
+        #print(str(np.shape(cache.output_gate_results)) + str(np.shape(loss_output)) + str(np.shape(last_loss_state)))
         delta_state = cache.output_gate_results * loss_output + last_loss_state
 
         delta_output_gate = self.output_gate_layer.activation_deriv(
@@ -144,13 +144,14 @@ class LSTMLayer(object):
         cache.loss_input = delta_concatinated_input[:self.in_size]
         cache.loss_output = delta_concatinated_input[self.in_size:]
 
-        return self.learn_recursive(cache.predecessor, deltas[:-1], loss_total)
+        return self.learn_recursive(cache.predecessor, deltas[:-1])
 
     def learn(self, deltas, learning_rate=0.001):
         Logger.debug("learn(" + str(deltas) + ")")
-        loss = self.learn_recursive(self.last_cache.predecessor, deltas, 0)
+        self.learn_recursive(self.last_cache.predecessor, deltas)
         self.apply_training(learning_rate)
-        return loss
+        deltas = [cache.loss_input for cache in self.caches]
+        return deltas
 
     def apply_training(self, learning_rate):
         p_updates = self.pending_updates
@@ -199,19 +200,11 @@ class LSTMLayer(object):
     def euclidean_loss_function(cls, predicted, target):
         return (predicted - target) ** 2
 
-    def visualize(self, path, prefix=""):
-        self.input_gate_layer.visualize(path, prefix + "InputG")
-        self.forget_gate_layer.visualize(path, prefix + "ForgetG")
-        self.output_gate_layer.visualize(path, prefix + "OutputG")
-        self.update_values_layer.visualize(path, prefix + "UpdateL")
-        """KTimage.exporttiles(self.input_gate_layer.weights, self.in_size + self.size,
-                            1, os.path.join(path, "obs_InputG_1_0.pgm"), 1, self.size)
-        KTimage.exporttiles(self.forget_gate_layer.weights, self.in_size + self.size,
-                            1, os.path.join(path, "obs_ForgetG_2_0.pgm"), 1, self.size)
-        KTimage.exporttiles(self.update_values_layer.weights, self.in_size + self.size,
-                            1, os.path.join(path, "obs_UpdateL_3_0.pgm"), 1, self.size)
-        KTimage.exporttiles(self.output_gate_layer.weights, self.in_size + self.size,
-                            1, os.path.join(path, "obs_OutputG_4_0.pgm"), 1, self.size)"""
+    def visualize(self, path, layer_id):
+        self.input_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "InputG_" + str(layer_id) + "_0.pgm"))
+        self.forget_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "ForgetG_" + str(layer_id * 2) + "_0.pgm"))
+        self.output_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "OutputG_" + str(layer_id * 3) + "_0.pgm"))
+        self.update_values_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "UpdateL_" + str(layer_id * 4) + "_0.pgm"))
 
     def clear_cache(self):
         self.caches = []

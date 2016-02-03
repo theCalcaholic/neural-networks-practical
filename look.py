@@ -45,7 +45,7 @@ weights    = []
 # example: python newlook.py --zoom=10 --noweights
 parser = argparse.ArgumentParser()
 parser.add_argument('--zoom', type=int, default=1)
-parser.add_argument('--path', type=str, default= os.getcwd())
+parser.add_argument('--path', type=str, default=os.getcwd())
 parser.add_argument('--noactivities', action='store_false', default=True)
 parser.add_argument('--noweights', action='store_false', default=True)
 # magnification factor for images
@@ -73,8 +73,8 @@ def readFiles():
     dirs = os.listdir(directory)
 
     #regex
-    activity = re.compile("obs_[a-zA-Z]*_[0-9]{1}.pgm")
-    weight   = re.compile("obs_[a-zA-Z]*_[0-9]{1}_[0-9]{1}.pgm")
+    activity = re.compile("obs_[0-9a-zA-Z]*_[0-9]{1}.pgm")
+    weight   = re.compile("obs_[0-9a-zA-Z]*_[0-9]{1}_[0-9]{1}.pgm")
 
     for d in dirs:
         if activity.match(d):
@@ -119,7 +119,7 @@ def drawFilesonGUI():
     if display_act:
         # sorting things in activities:
         # regex: group_1: character, group_2: number
-        activity = re.compile("obs_([a-zA-Z]*)_([0-9]{1}).pgm")
+        activity = re.compile("obs_([0-9a-zA-Z]*)_([0-9]{1}).pgm")
 
         for a in activities:
 
@@ -168,7 +168,7 @@ def drawFilesonGUI():
     if display_weight:
         # sorting things in weights
         # regex: group_1: higher layer, group_2: lower layer
-        weight   = re.compile("obs_[a-zA-Z]*_([0-9]{1})_([0-9]{1}).pgm")
+        weight   = re.compile("obs_[0-9a-zA-Z]*_([0-9]{1})_([0-9]{1}).pgm")
 
         for w in weights:
             # get meta information

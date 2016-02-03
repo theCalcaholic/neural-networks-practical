@@ -1,6 +1,5 @@
 import numpy as np
 import random
-#from scimage.io import imread
 
 
 class DataStore(object):

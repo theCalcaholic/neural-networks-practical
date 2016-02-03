@@ -6,6 +6,12 @@ from DataStore import DataStore
 from lstm_network import util
 
 
+"""
+-----------------------------------------------------------------------------------------------------------------------
+An up to date version of this program is available at https://github.com/theCalcaholic/prakNN/tree/feature_lstm-network
+-----------------------------------------------------------------------------------------------------------------------
+"""
+
 ### Example status output after 500 iterations on the training set found in ./lstm_training_data/loremipsum.txt
 ### using 1 lstm layer of size 200 and time_steps=10
 """

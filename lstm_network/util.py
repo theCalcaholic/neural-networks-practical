@@ -11,12 +11,12 @@ def get_status_function(data_store, lstm, status_frequency):
                  "Loss: " + loss + "  " + \
                     ("\\/" if loss_difference > 0 else ("--" if loss_difference == 0 else "/\\")) + \
                     " " + str(loss_difference)[1:] + "\n" + \
-                 "Target: " + ''.join([data_store.decode_char(c) for c in target_list]).replace("\n", "|") + "\n" + \
-                 "Output: " + data_store.decode_char_list(output_list).replace("\n", "|") + "\n\n"
+                 "Target: " + ''.join([data_store.decode_output(c) for c in target_list]).replace("\n", "|") + "\n" + \
+                 "Output: " + ''.join(data_store.decode_all_outputs(output_list)).replace("\n", "|") + "\n\n"
         if not (int(iteration)+1) % (status_frequency * 5):
-            character = data_store.int_to_data[random.randint(0, data_store.length() - 1)]
-            seed = data_store.encode_char(chr(character))
-            freestyle = data_store.decode_char_list(lstm.freestyle(seed, 30))
+            character = data_store.input_vecid2data[random.randint(0, len(data_store.input_data_set) - 1)]
+            seed = data_store.encode_input(character)
+            freestyle = ''.join(data_store.decode_all_outputs(lstm.freestyle(seed, 30)))
             status += "freestyle: " + freestyle + "\n\n"
         return status
     return get_status

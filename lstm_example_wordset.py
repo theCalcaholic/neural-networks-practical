@@ -26,7 +26,7 @@ freestyle: juauee emusuari d iasooeutd cor
 
 ### Most configuration options can be set here...
 config = {
-    "memory_sizes": [150, 100],  # list of lstm layer sizes. For each size a corresponding lstm layer will be created
+    "memory_sizes": [200],  # list of lstm layer sizes. For each size a corresponding lstm layer will be created
     "time_steps": 20,  # number of inputs over which to learn backwards in time
     "learning_rate": 0.01,  # self explanatory
     "iterations": 10000,  # maximum iterations to train. Will terminate training once reached
@@ -39,23 +39,26 @@ config = {
 # print/hide debug information
 util.Logger.DEBUG = False
 
-# initialize data store object
-data_store = DataStore()
-
+# cleanse old visualization files
+v_path = os.path.join(os.getcwd(), 'visualize')
+for f in next(os.walk(v_path), (None, None, []))[2]:
+    os.remove(os.path.join(v_path, f))
 
 # Training sets
 """input_text = "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
              + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"""""
 input_text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, ipsum sed diam"
+#input text = os.open("lstm_training_data/vanishing_vocables_de.txt", r).read()
+#input_text = os.open("lstm_training_data/loremipsum.txt", r).read()
 
-# Either use set_input_text(string) to use a string as trainings set or define a text file using load_file(file_path)
-data_store.set_input_text(input_text)
-#data_store.load_file("lstm_training_data/vanishing_vocables_de.txt")
-#data_store.load_file("lstm_training_data/loremipsum.txt")
 
-# apply config to data_store
+# initialize data store object
+data_store = DataStore(
+        input_data_set=set(input_text),
+        output_data_set=set(input_text),
+        input_data=input_text)
+# set data_store configuration
 data_store.configure({
-    "memory_size": config["memory_sizes"][0],
     "sequence_length": config["time_steps"]
 })
 
@@ -92,7 +95,7 @@ lstm.train(
 
 ### Generate string by feeding lstm network with it's own output:
 # retrieve character from
-character = data_store.int_to_data[random.randint(0, data_store.length() - 1)]
-seed = data_store.encode_char(chr(character))
+character = data_store.input_vecid2data[random.randint(0, data_store.length() - 1)]
+seed = data_store.encode_input(chr(character))
 # get 'freestyle' sample from character of length 100
-print(data_store.decode_char_list(lstm.freestyle(seed, 100)))
+print(data_store.decode_all_outputs(lstm.freestyle(seed, 100)))

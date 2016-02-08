@@ -2,115 +2,119 @@ import numpy as np
 import random
 
 
+class SymmetricDataStore(DataStore):
+    pass
+
+
 class DataStore(object):
     """stores and offers easy access to training data for neural networks (for now it's character based only)"""
-    def __init__(self):
+    def __init__(self, input_data_set, output_data_set, input_data):
         """initialize DataStore object"""
-        self.raw_input = None
-        self.input_data = None
-        self.data_set = None  # contains every single encodable character (once)
-        self.data_to_int = None  # dictionary to quickly convert index of highest data vector position to ord(character)
-        self.int_to_data = None  # dicitionary to quickly convert ord(character) to index of highest data vector
-        self.generated = False  # flag to save initialization state
-        self.in_size = None
-        self.out_size = None
+        self.raw_input = input_data
+        self.input_data_set = input_data_set  # contains every single encodable character (once)
+        self.output_data_set = output_data_set
+        # dictionary to quickly convert index of highest data vector position to ord(character)
+        self.output_vecid2data = {idx: data for idx, data in enumerate(self.output_data_set)}
+        # dicitionary to quickly convert ord(character) to index of highest data vector
+        self.output_data2vecid = {data: idx for idx, data in enumerate(self.output_data_set)}
+        # dictionary to quickly convert index of highest data vector position to ord(character)
+        self.input_vecid2data = {idx: data for idx, data in enumerate(self.input_data_set)}
+        # dicitionary to quickly convert ord(character) to index of highest data vector
+        self.input_data2vecid = {data: idx for idx, data in enumerate(self.input_data_set)}
+        self.in_size = len(self.input_data_set)
+        self.out_size = len(self.output_data_set)
         # config dictionary to store configuration options
         self.config = {
-            'memory_size': None,  # memory size - only needed if extend_alphabet is True
-            'time_depth': None,  # number of steps in time to learn
-            'extend_alphabet': False,
             'sequence_length': None  # size of training batches
         }
+        self.generated = True  # flag to save initialization state
 
     def load_file(self, path_to_textfile):
         """load (ascii) file content from path and set as training input"""
         self.generated = False
         self.raw_input = open(path_to_textfile, 'r').read()
 
-    def set_input_text(self, text):
+    def set_input(self, input_data, input_data_set):
         """set training input to <text>"""
         self.generated = False
-        self.raw_input = text
+        self.raw_input = input_data
 
-    def extend_data_set(self):
-        """Deprecated! extends data set to the size of the lstm's memory"""
-        self.data_set = self.data_set.union(set(
-            [(x + 256)
-             for x in range(max(0, self.config["memory_size"] - len(self.data_set)))]
-        ))
+    def set_output_data_set(self, output_data_set):
+        self.generated = False
+        self.output_data_set = output_data_set
 
-    def length(self):
-        """returns the length of the data_set"""
-        return len(self.data_set)
-
-    def decode_char(self, data):
+    @classmethod
+    def decode(cls, vector, mapping):
         """decode input vector to character"""
-        char = self.int_to_data[np.argmax(data)]
-        return "#" if char > 255 else chr(char)
+        val = mapping[np.argmax(vector)]
+        return val
 
-    def decode_char_list(self, data_list):
+    def decode_output(self, vector):
+        return DataStore.decode(vector, self.output_vecid2data)
+
+    def decode_input(self, vector):
+        return DataStore.decode(vector, self.input_vecid2data)
+
+    @classmethod
+    def decode_all(self, vector_list, mapping):
         """decode list of input vectors to list of chars (i.e. string)"""
-        decoded = ""
-        for dat in data_list:
-            decoded += self.decode_char(dat)
+        decoded = []
+        for vector in vector_list:
+            decoded.append(self.decode(vector, mapping))
         return decoded
 
-    def encode_char(self, char):
+    def decode_all_inputs(self, vector_list):
+        return DataStore.decode_all(vector_list, self.input_vecid2data)
+
+    def decode_all_outputs(self, vector_list):
+        return DataStore.decode_all(vector_list, self.output_vecid2data)
+
+    @classmethod
+    def encode(cls, value, mapping):
         """encode character to input vector (using 1-of-k-folding)"""
-        encoded = np.zeros((len(self.data_set), 1))
-        encoded[self.data_to_int[ord(char)]] = 1
+        encoded = np.zeros((len(mapping), 1))
+        encoded[mapping[value]] = 1
         return encoded
 
-    def encode_char_list(self, string_in):
+    def encode_input(self, value):
+        return DataStore.encode(value, self.input_data2vecid)
+
+    def encode_output(self, value):
+        return DataStore.encode(value, self.output_data2vecid)
+
+    @classmethod
+    def encode_all(cls, values_list, mapping):
         """encode list of characters (string) to list of input vectors"""
         encoded_data = []
-        for i in xrange(len(string_in)):
+        for value in values_list:
             # encode character in 1-of-k representation
-            encoded_data.append(self.encode_char(string_in[i]))
+            encoded_data.append(DataStore.encode(value, mapping))
         return encoded_data
+
+    def encode_all_inputs(self, values_list):
+        return DataStore.encode_all(values_list, self.input_data2vecid)
+
+    def encode_all_outputs(self, values_list):
+        return DataStore.encode_all(values_list, self.output_data2vecid)
 
     def samples(self):
         """returns generator object for serving sequences of input vectors"""
-        # initialize data store
-        self.generate_data()
         # create and return generator object
         return Sequences(
             data=self.raw_input,  # training data as string
             sequence_length=self.config['sequence_length'],  # length of single training batch
-            encode=self.encode_char_list   # method for encoding strings
+            encode_list=self.encode_all_inputs   # method for encoding strings
         )
 
     def random_samples(self, amount):
         """returns generator object for serving random sequences of input vectors out of the training data"""
-        # initialize data store
-        self.generate_data()
         # create and return generator object
         return RandomSequences(
             amount=amount,  # amount of sequences to serve
             data=self.raw_input,  # training data as string
             sequence_length=self.config['sequence_length'],  # length of single training batch
-            encode=self.encode_char_list  # method for encoding strings
+            encode=self.encode_all_inputs  # method for encoding strings
         )
-
-    def generate_data(self):
-        """initialize data set and encode/decode methods"""
-        if self.generated:
-            return
-        # replace newlines by | (for better output to console)
-        self.raw_input = self.raw_input.replace("\n", "|")
-        # create data_set
-        self.data_set = set([ord(x) for x in self.raw_input])
-        # extend data set if option set to True
-        if self.config["extend_alphabet"]:
-            self.extend_data_set()
-        # create conversion dictionaries
-        self.data_to_int = {dat: idx for idx, dat in enumerate(self.data_set)}
-        self.int_to_data = {idx: dat for idx, dat in enumerate(self.data_set)}
-        # calculate vector sizes
-        self.in_size = len(self.data_set)
-        self.out_size = len(self.data_set)
-        # mark data store as initialized
-        self.generated = True
 
     def configure(self, config):
         """update data store configuration from dictionary <config>"""
@@ -120,12 +124,12 @@ class DataStore(object):
 
 class Sequences(object):
     """generator class for serving sequences of training data"""
-    def __init__(self, data, sequence_length, encode):
+    def __init__(self, data, encode_list, sequence_length):
         """initialize generator object"""
         self.sequence_length = sequence_length
         self.raw_data = data
         self.current = 0
-        self.encode = encode
+        self.encode = encode_list
 
     def __iter__(self):
         """is iterable"""
@@ -162,7 +166,7 @@ class Sequences(object):
 
 class RandomSequences(object):
     """generator class for serving sequences of training data in random order"""
-    def __init__(self, amount, data, sequence_length, encode):
+    def __init__(self, amount, data, sequence_length, encode_list):
         """
         intialize generator object
         @amount the amount of sequences to serve
@@ -172,7 +176,7 @@ class RandomSequences(object):
         """
         self.raw_data = data
         self.current = 0
-        self.encode = encode
+        self.encode = encode_list
         self.max = amount
         self.sequence_length = sequence_length
         self.data_length = len(self.raw_data)
@@ -226,3 +230,9 @@ class RandomSequences(object):
         return self.encode(self.raw_data[rand_id:stop_id])
 
 
+class DataMapper(object):
+    def __init__(self, data_set_in, data_set_out):
+        self.mapping = {data_in: data_out for data_in, data_out in zip(data_set_in, data_set_out)}
+
+    def convert(self, data_in):
+        return self.mapping[data_in]

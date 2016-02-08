@@ -2,10 +2,6 @@ import numpy as np
 import random
 
 
-class SymmetricDataStore(DataStore):
-    pass
-
-
 class DataStore(object):
     """stores and offers easy access to training data for neural networks (for now it's character based only)"""
     def __init__(self, input_data_set, output_data_set, input_data):
@@ -120,6 +116,10 @@ class DataStore(object):
         """update data store configuration from dictionary <config>"""
         for key in set(self.config.keys()) & set(config.keys()):
             self.config[key] = config[key]
+
+
+class SymmetricDataStore(DataStore):
+    pass
 
 
 class Sequences(object):

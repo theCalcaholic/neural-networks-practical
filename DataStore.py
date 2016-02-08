@@ -113,7 +113,7 @@ class DataStore(object):
             amount=amount,  # amount of sequences to serve
             data=self.raw_input,  # training data as string
             sequence_length=self.config['sequence_length'],  # length of single training batch
-            encode=self.encode_all_inputs  # method for encoding strings
+            encode_list=self.encode_all_inputs  # method for encoding strings
         )
 
     def configure(self, config):

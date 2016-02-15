@@ -61,6 +61,8 @@ class LSTMLayer(object):
 
         self.caches = []
 
+        self.clip_count = 0
+
     @classmethod
     def get_convolutional_layer(cls, reference_layer):
         """returns a copy of the lstm layer which shares the same weights and biases"""
@@ -219,6 +221,7 @@ class LSTMLayer(object):
         p_updates.reset()
 
         # clip matrices to prevent exploding gradient
+        self.clip_count = 0
         for matrix in [
                 self.forget_gate_layer.weights,
                 self.input_gate_layer.weights,
@@ -228,6 +231,10 @@ class LSTMLayer(object):
                 self.input_gate_layer.biases,
                 self.update_values_layer.biases,
                 self.output_gate_layer.biases]:
+            self.clip_count += (matrix > 5).sum()
+            if np.max(matrix) > 5:
+                print(str(matrix > 5) + "\ncount: " + str(self.clip_count) + "/" + str(np.max(matrix)))
+                #raw_input("...")
             np.clip(matrix, -5, 5, out=matrix)
 
     def save(self, directory):
@@ -246,10 +253,10 @@ class LSTMLayer(object):
 
     def visualize(self, path, layer_id):
         """generate visualization of weights and biases"""
-        self.input_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "InputG_1_0.pgm"))
-        self.forget_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "ForgetG_2_0.pgm"))
-        self.output_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "OutputG_3_0.pgm"))
-        self.update_values_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "UpdateL_4_0.pgm"))
+        self.input_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "InputG"), 1)
+        self.forget_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "ForgetG"), 2)
+        self.output_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "OutputG"), 3)
+        self.update_values_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "UpdateL"), 4)
 
     def clear_cache(self):
         """clear all caches (i.e. state , error carousel, layer results)"""

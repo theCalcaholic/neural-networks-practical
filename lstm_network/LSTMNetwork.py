@@ -1,4 +1,4 @@
-import os
+import os, time
 import numpy as np
 from lstm_network.LSTMLayer import LSTMLayer
 from neural_network import NeuralLayer, CachingNeuralLayer
@@ -129,7 +129,7 @@ class LSTMNetwork:
         # apply weight updates to ouput layer
         self.output_layer.weights -= pending_output_weight_updates * self.config["learning_rate"]
         # clip weights matrix to prevent exploding gradient
-        self.output_layer.weights = np.clip(self.output_layer.weights, -5, 5)
+        self.output_layer.weights = np.clip(self.output_layer.weights, -1, 1)
 
         # calculate output layer deltas from losses
         deltas = [
@@ -142,7 +142,7 @@ class LSTMNetwork:
             deltas = layer.learn(deltas, self.config["learning_rate"])
 
         # return cumulative output error
-        return error
+        return error, output_losses
 
     def train(self, sequences, iterations=100, target_loss=0, iteration_start=0, dry_run=False):
         """
@@ -168,13 +168,18 @@ class LSTMNetwork:
 
             for sequence in sequences:
                 # since we try to predict the next character, target values equal inputs shifted by 1
-                inputs = sequence[:-1]
-                targets = sequence[1:]
+                inputs = sequence["inputs"]
+                targets = sequence["targets"]
 
                 # calculate outputs using the training layers
                 outputs = self.feedforward(self.training_layers, inputs)
                 # learn based on the given targets
-                loss = self.learn(targets)
+                loss, output_losses = self.learn(targets)
+                print("Clip Count: " + str(self.training_layers[0].clip_count))
+                if self.training_layers[0].clip_count > 5:
+                    self.visualize("visualize/insane")
+                    print("Output losses:\n" + str(output_losses))
+                    raw_input("Clip Count exploded!")
 
                 # collect output and target values for status printing
                 output_list.extend(outputs)
@@ -183,14 +188,15 @@ class LSTMNetwork:
             # calculate average loss of last iteration
             iteration_loss = np.average(loss_list)
 
+
             # each <status_frequency> iterations print status (if verbose = True) and create visualization of weights
+            self.visualize("visualize")
             if not (i + 1) % self.config["status_frequency"] \
                     or iteration_loss < target_loss:
                 if dry_run:
                     self.load()
                 else:
                     self.save()
-                self.visualize("visualize")
                 loss_diff -= iteration_loss
                 if self.config["verbose"]:
                     print(self.get_status(
@@ -201,6 +207,7 @@ class LSTMNetwork:
                         loss=str(iteration_loss),
                         loss_difference=str(loss_diff)
                     ))
+                    time.sleep(1)
                 loss_diff = iteration_loss
             # check for accuracy condition
             if iteration_loss < target_loss:
@@ -278,4 +285,4 @@ class LSTMNetwork:
         """generate visualization of weights and biases"""
         for idx, layer in enumerate(self.training_layers[:-1]):
             layer.visualize(path, idx + 1)
-        self.output_layer.visualize(os.path.join(path, "obs_OutputL_1_0.pgm"))
+        self.output_layer.visualize(os.path.join(path, "obs_OutputL"), 1)

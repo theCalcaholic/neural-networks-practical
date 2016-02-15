@@ -4,11 +4,13 @@ import random
 
 class DataStore(object):
     """stores and offers easy access to training data for neural networks (for now it's character based only)"""
-    def __init__(self, input_data_set, output_data_set, input_data):
+    def __init__(self, input_data, target_data, input_data_set=None, output_data_set=None):
         """initialize DataStore object"""
-        self.raw_input = input_data
-        self.input_data_set = input_data_set  # contains every single encodable character (once)
-        self.output_data_set = output_data_set
+        self.input_data = input_data
+        self.target_data = target_data
+        # contains every single encodable character (once)
+        self.input_data_set = set(self.input_data) if input_data_set is None else input_data_set
+        self.output_data_set = set(self.target_data) if output_data_set is None else output_data_set
         # dictionary to quickly convert index of highest data vector position to ord(character)
         self.output_vecid2data = {idx: data for idx, data in enumerate(self.output_data_set)}
         # dicitionary to quickly convert ord(character) to index of highest data vector
@@ -97,9 +99,11 @@ class DataStore(object):
         """returns generator object for serving sequences of input vectors"""
         # create and return generator object
         return Sequences(
-            data=self.raw_input,  # training data as string
+            input_data=self.input_data,  # training data as string
+            target_data=self.target_data,
             sequence_length=self.config['sequence_length'],  # length of single training batch
-            encode_list=self.encode_all_inputs   # method for encoding strings
+            encode_inputs=self.encode_all_inputs,
+            encode_outputs=self.encode_all_outputs
         )
 
     def random_samples(self, amount):
@@ -119,17 +123,22 @@ class DataStore(object):
 
 
 class SymmetricDataStore(DataStore):
-    pass
+    def __init__(self, input_data):
+        self.encode = lambda input_value: SymmetricDataStore.encode(input_value, self.input_data2vecid)
+        self.encode_all = lambda input_values: SymmetricDataStore.encode_all(input_values, self.input_data2vecid)
+        super(SymmetricDataStore, self).__init__(input_data[:-1], input_data[1:])
 
 
 class Sequences(object):
     """generator class for serving sequences of training data"""
-    def __init__(self, data, encode_list, sequence_length):
+    def __init__(self, input_data, target_data, encode_inputs, encode_outputs, sequence_length):
         """initialize generator object"""
         self.sequence_length = sequence_length
-        self.raw_data = data
+        self.input_data = input_data
+        self.target_data = target_data
         self.current = 0
-        self.encode = encode_list
+        self.encode_inputs = encode_inputs
+        self.encode_outputs = encode_outputs
 
     def __iter__(self):
         """is iterable"""
@@ -155,13 +164,16 @@ class Sequences(object):
         # calculate slicing start position
         start = idx * self.sequence_length
         # calculate slicing stop position
-        stop = min(start + self.sequence_length + 1, len(self.raw_data))
+        stop = min(start + self.sequence_length + 1, len(self.input_data))
 
-        if start > len(self.raw_data):
+        if start > len(self.input_data):
             return None
 
         # return encoded sequence
-        return self.encode(self.raw_data[start:stop])
+        return {
+            "inputs": self.encode_inputs(self.input_data[start:stop]),
+            "targets": self.encode_outputs(self.target_data[start:stop])
+        }
 
 
 class RandomSequences(object):

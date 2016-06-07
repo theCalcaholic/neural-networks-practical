@@ -50,13 +50,12 @@ class NeuralLayer(object):
         self.weights = np_saved['weights']
         self.biases = np_saved['biases']
 
-    def visualize(self, path, idx):
+    def visualize(self, path):
         """create visualization for weights at <path>"""
         if not os.path.isdir(os.path.dirname(path)):
             os.makedirs(os.path.dirname(path))
-        #KTimage.exporttiles(self.biases, self.size, 1, path + "B_" + str(idx) + ".pgm")
         KTimage.exporttiles(self.weights, self.in_size,
-                            1, path + "W" + str(idx) + "_0.pgm", 1, self.size)
+                            1, path, 1, self.size)
 
     @classmethod
     def activation_linear(cls, x):

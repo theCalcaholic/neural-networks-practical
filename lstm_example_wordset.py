@@ -53,13 +53,10 @@ input_text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, ipsum sed
 
 
 # initialize data store object
-data_set = set(input_text)
 data_store = DataStore(
-        input_data=input_text[:-1],
-        target_data=input_text[1:],
-        input_data_set=data_set,
-        output_data_set=data_set
-)
+        input_data_set=set(input_text),
+        output_data_set=set(input_text),
+        input_data=input_text)
 # set data_store configuration
 data_store.configure({
     "sequence_length": config["time_steps"]
@@ -80,12 +77,12 @@ lstm.configure(config)
 lstm.get_status = util.get_status_function(data_store, lstm, config["status_frequency"])
 # Populate layers
 lstm.populate(
-    in_size=data_store.in_size,  # input size of first lstm unit - according to input vector size
-    out_size=data_store.out_size,  # output size of output layer - according to input/output vector size
+    in_size=np.shape(samples[0][0])[0],  # input size of first lstm unit - according to input vector size
+    out_size=np.shape(samples[0][0])[0],  # output size of output layer - according to input/output vector size
     memory_sizes=config["memory_sizes"])  # list of lstm unit sizes (memory unit sizes)
 
 # Uncomment to load previously saved network weights and biases from directory
-lstm.load(config["save_dir"])
+#lstm.load(config["save_dir"])
 
 
 # train the network
@@ -98,7 +95,7 @@ lstm.train(
 
 ### Generate string by feeding lstm network with it's own output:
 # retrieve character from
-character = data_store.input_vecid2data[random.randint(0, data_store.in_size - 1)]
+character = data_store.input_vecid2data[random.randint(0, data_store.length() - 1)]
 seed = data_store.encode_input(chr(character))
 # get 'freestyle' sample from character of length 100
 print(data_store.decode_all_outputs(lstm.freestyle(seed, 100)))

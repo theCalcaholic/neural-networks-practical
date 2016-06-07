@@ -14,8 +14,7 @@ def get_status_function(data_store, lstm, status_frequency):
                  "Target: " + ''.join([data_store.decode_output(c) for c in target_list]).replace("\n", "|") + "\n" + \
                  "Output: " + ''.join(data_store.decode_all_outputs(output_list)).replace("\n", "|") + "\n\n"
         if not (int(iteration)+1) % (status_frequency * 5):
-            character = data_store.input_vecid2data[random.randint(0, len(data_store.input_data_set) - 1)]
-            seed = data_store.encode_input(character)
+            seed = data_store.encode_input("l")
             freestyle = ''.join(data_store.decode_all_outputs(lstm.freestyle(seed, 30)))
             status += "freestyle: " + freestyle + "\n\n"
         return status

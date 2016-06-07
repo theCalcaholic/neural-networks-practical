@@ -58,10 +58,12 @@ class LSTMLayer(object):
         self.last_cache = LSTMLayerCache()
         self.first_cache.insert_after(self.last_cache)
         self.last_cache.is_last_cache = True
+        self.last_cache.delta_output_gate = np.zeros_like(self.first_cache.state)
 
         self.caches = []
 
         self.clip_count = 0
+        self.time_steps = 0
 
     @classmethod
     def get_convolutional_layer(cls, reference_layer):
@@ -128,8 +130,10 @@ class LSTMLayer(object):
         @cache cache corresponding to current time step
         @deltas deltas from last (actually next) layer
         """
+        self.time_steps += 1
         # terminate if there are no target values or caches left
         if len(deltas) == 0 or cache.is_first_cache:
+            self.time_steps = 0
             return
         # get delta for current time step
         delta = deltas[-1]
@@ -145,6 +149,7 @@ class LSTMLayer(object):
 
         delta_output_gate = self.output_gate_layer.activation_deriv(
                 cache.output_gate_results) * cache.state * loss_output
+        cache.delta_output_gate = delta_output_gate
 
         delta_input_gate = self.input_gate_layer.activation_deriv(
                 cache.input_gate_results) * cache.update_values_layer_results * delta_state
@@ -164,6 +169,18 @@ class LSTMLayer(object):
             np.outer(delta_input_gate, concat_in)
         self.pending_updates.forget_gate_weights += \
             np.outer(delta_forget_gate, concat_in)
+        if False and np.max(self.pending_updates.forget_gate_weights) > 10:
+            print("Large updates! (min: " + str(np.min(self.pending_updates.forget_gate_weights)) +
+                  ", max: " + str(np.max(self.pending_updates.forget_gate_weights)) + "):" +
+                  "Time: " + str(self.time_steps))
+            print("updates: " + '\n'.join([', '.join([str(v) for v in w]) for w in self.pending_updates.forget_gate_weights]))
+            print("concat_in: \n" + ', '.join([str(v) for v in concat_in]))
+            print("delta: \n" + ', '.join([str(w) for w in delta_forget_gate]))
+            print("results: \n" + ', '.join([str(v) for v in cache.forget_gate_results]))
+            print("pre_state: \n" + ', '.join([str(v) for v in cache.predecessor.state]))
+            print("delta_state: \n" + ', '.join([str(v) for v in delta_state]))
+            print("last_loss_state: \n" + ', '.join([str(v) for v in last_loss_state]))
+            raw_input("")
         self.pending_updates.output_gate_weights += \
             np.outer(delta_output_gate, concat_in)
         self.pending_updates.update_values_layer_weights += \
@@ -190,7 +207,7 @@ class LSTMLayer(object):
         # call itself recursively for next time step (t-1)
         return self.learn_recursive(cache.predecessor, deltas[:-1])
 
-    def learn(self, deltas, learning_rate=0.001):
+    def learn(self, deltas, learning_rate=0.001, dry=False):
         """
         apply learning algorithm by using deltas from next layer
         @deltas deltas from last (actually next) layer
@@ -199,7 +216,7 @@ class LSTMLayer(object):
         # learn recursively over all caches (corresponds to time steps), starting with last cache
         self.learn_recursive(self.last_cache.predecessor, deltas)
         # apply pending weight and bias updates
-        self.apply_training(learning_rate)
+        dry or self.apply_training(learning_rate)
         # calculate and return deltas for this layer from losses
         deltas = [cache.loss_input for cache in self.caches]
         return deltas
@@ -209,20 +226,18 @@ class LSTMLayer(object):
         p_updates = self.pending_updates
         lr = learning_rate
         # subtract updates multiplied with learning rate from weight matrices/bias vectors
-        self.forget_gate_layer.weights -= lr * p_updates.forget_gate_weights
-        self.input_gate_layer.weights -= lr * p_updates.input_gate_weights
-        self.update_values_layer.weights -= lr * p_updates.update_values_layer_weights
-        self.output_gate_layer.weights -= lr * p_updates.output_gate_weights
-        self.forget_gate_layer.biases -= lr * p_updates.forget_gate_biases
-        self.input_gate_layer.biases -= lr * p_updates.input_gate_biases
-        self.update_values_layer.biases -= lr * p_updates.update_values_layer_biases
-        self.output_gate_layer.biases -= lr * p_updates.output_gate_biases
-        # reset pending updates
-        p_updates.reset()
+        self.forget_gate_layer.weights -= lr * np.clip(p_updates.forget_gate_weights, -5, 5)
+        self.input_gate_layer.weights -= lr * np.clip(p_updates.input_gate_weights, -5, 5)
+        self.update_values_layer.weights -= lr * np.clip(p_updates.update_values_layer_weights, -5, 5)
+        self.output_gate_layer.weights -= lr * np.clip(p_updates.output_gate_weights, -5, 5)
+        self.forget_gate_layer.biases -= lr * np.clip(p_updates.forget_gate_biases, -5, 5)
+        self.input_gate_layer.biases -= lr * np.clip(p_updates.input_gate_biases, -5, 5)
+        self.update_values_layer.biases -= lr * np.clip(p_updates.update_values_layer_biases, -5, 5)
+        self.output_gate_layer.biases -= lr * np.clip(p_updates.output_gate_biases, -5, 5)
 
         # clip matrices to prevent exploding gradient
         self.clip_count = 0
-        for matrix in [
+        """for matrix in [
                 self.forget_gate_layer.weights,
                 self.input_gate_layer.weights,
                 self.update_values_layer.weights,
@@ -231,11 +246,15 @@ class LSTMLayer(object):
                 self.input_gate_layer.biases,
                 self.update_values_layer.biases,
                 self.output_gate_layer.biases]:
-            self.clip_count += (matrix > 5).sum()
-            if np.max(matrix) > 5:
-                print(str(matrix > 5) + "\ncount: " + str(self.clip_count) + "/" + str(np.max(matrix)))
-                #raw_input("...")
-            np.clip(matrix, -5, 5, out=matrix)
+            if False and np.min(matrix) < -10:
+                print(str((matrix < -5)))
+                print("min: " + str(np.min(matrix)))
+                raw_input("")
+            self.clip_count += ((matrix > 5) | (matrix < -5)).sum()
+            np.clip(matrix, -5, 5, out=matrix)"""
+
+        # reset pending updates
+        #p_updates.reset()
 
     def save(self, directory):
         """save weights and biases to directory"""
@@ -253,10 +272,10 @@ class LSTMLayer(object):
 
     def visualize(self, path, layer_id):
         """generate visualization of weights and biases"""
-        self.input_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "InputG"), 1)
-        self.forget_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "ForgetG"), 2)
-        self.output_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "OutputG"), 3)
-        self.update_values_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "UpdateL"), 4)
+        self.input_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "InputG_1_0.pgm"))
+        self.forget_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "ForgetG_2_0.pgm"))
+        self.output_gate_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "OutputG_3_0.pgm"))
+        self.update_values_layer.visualize(os.path.join(path, "LSTM" + str(layer_id), "obs_" + "UpdateL_4_0.pgm"))
 
     def clear_cache(self):
         """clear all caches (i.e. state , error carousel, layer results)"""

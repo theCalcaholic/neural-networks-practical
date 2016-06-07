@@ -1,8 +1,7 @@
-import os, time
+import os
 import numpy as np
 from lstm_network.LSTMLayer import LSTMLayer
 from neural_network import NeuralLayer, CachingNeuralLayer
-
 
 class LSTMNetwork:
     """Class to manage network of multiple lstm layers and output layer"""
@@ -31,6 +30,8 @@ class LSTMNetwork:
         }
         # dynamically exchangable function for printing status
         self.get_status = LSTMNetwork.get_status
+
+        self.clips = []
 
     def populate(self, in_size, out_size, memory_sizes=None):
         """
@@ -127,9 +128,9 @@ class LSTMNetwork:
                 break
 
         # apply weight updates to ouput layer
-        self.output_layer.weights -= pending_output_weight_updates * self.config["learning_rate"]
+        self.output_layer.weights -= np.clip(pending_output_weight_updates, -5, 5) * self.config["learning_rate"]
         # clip weights matrix to prevent exploding gradient
-        self.output_layer.weights = np.clip(self.output_layer.weights, -1, 1)
+        #self.output_layer.weights = np.clip(self.output_layer.weights, -5, 5)
 
         # calculate output layer deltas from losses
         deltas = [
@@ -141,8 +142,21 @@ class LSTMNetwork:
             # invoke learn method of each lstm layer with deltas of layer before (beginning with output layer deltas)
             deltas = layer.learn(deltas, self.config["learning_rate"])
 
+        clip_count = self.training_layers[0].clip_count
+        if False and clip_count > 5:
+            print("Large error detected! (clip count: " + str(clip_count) + ")")
+            print("inputs: \n" + '\n'.join([', '.join([str(v) for v in cache.concatenated_input]) for cache in self.training_layers[0].caches]) + "\n")
+            print("hid out: \n" + '\n'.join([', '.join([str(v) for v in cache.output_values]) for cache in self.training_layers[0].caches]) + "\n")
+            print("output: \n" + '\n'.join([', '.join([str(v) for v in cache.output_values]) for cache in self.output_layer.caches]) + "\n")
+            print("target: \n" + '\n'.join([', '.join([str(v) for v in t]) for t in targets]) + "\n")
+            print("losses: \n" + '\n'.join([', '.join([str(v) for v in l]) for l in output_losses]) + '\n')
+            print("updates: \n" + '\n'.join([', '.join([str(v) for v in w]) for w in self.training_layers[0].pending_updates.forget_gate_weights]) + "\n")
+            self.stepwise += raw_input("(stepwise=) Press Enter to proceed...")
+        for layer in self.training_layers[:-1]:
+            layer.pending_updates.reset()
+
         # return cumulative output error
-        return error, output_losses
+        return error
 
     def train(self, sequences, iterations=100, target_loss=0, iteration_start=0, dry_run=False):
         """
@@ -165,21 +179,22 @@ class LSTMNetwork:
             loss_list = []
             output_list = []
             target_list = []
+            self.stepwise = ""
 
             for sequence in sequences:
                 # since we try to predict the next character, target values equal inputs shifted by 1
-                inputs = sequence["inputs"]
-                targets = sequence["targets"]
+                inputs = sequence[:-1]
+                targets = sequence[1:]
 
                 # calculate outputs using the training layers
                 outputs = self.feedforward(self.training_layers, inputs)
+
+                self.save()
+
                 # learn based on the given targets
-                loss, output_losses = self.learn(targets)
-                print("Clip Count: " + str(self.training_layers[0].clip_count))
-                if self.training_layers[0].clip_count > 5:
-                    self.visualize("visualize/insane")
-                    print("Output losses:\n" + str(output_losses))
-                    raw_input("Clip Count exploded!")
+                loss = self.learn(targets)
+
+
 
                 # collect output and target values for status printing
                 output_list.extend(outputs)
@@ -190,13 +205,13 @@ class LSTMNetwork:
 
 
             # each <status_frequency> iterations print status (if verbose = True) and create visualization of weights
-            self.visualize("visualize")
             if not (i + 1) % self.config["status_frequency"] \
                     or iteration_loss < target_loss:
                 if dry_run:
                     self.load()
                 else:
                     self.save()
+                self.visualize("visualize")
                 loss_diff -= iteration_loss
                 if self.config["verbose"]:
                     print(self.get_status(
@@ -207,8 +222,9 @@ class LSTMNetwork:
                         loss=str(iteration_loss),
                         loss_difference=str(loss_diff)
                     ))
-                    time.sleep(1)
                 loss_diff = iteration_loss
+                if len(self.stepwise) > 0:
+                    raw_input("...")
             # check for accuracy condition
             if iteration_loss < target_loss:
                 print("Target loss reached! Training finished.")
@@ -285,4 +301,4 @@ class LSTMNetwork:
         """generate visualization of weights and biases"""
         for idx, layer in enumerate(self.training_layers[:-1]):
             layer.visualize(path, idx + 1)
-        self.output_layer.visualize(os.path.join(path, "obs_OutputL"), 1)
+        self.output_layer.visualize(os.path.join(path, "obs_OutputL_1_0.pgm"))

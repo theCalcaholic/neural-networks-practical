@@ -26,9 +26,9 @@ freestyle: juauee emusuari d iasooeutd cor
 
 ### Most configuration options can be set here...
 config = {
-    "memory_sizes": [200],  # list of lstm layer sizes. For each size a corresponding lstm layer will be created
-    "time_steps": 20,  # number of inputs over which to learn backwards in time
-    "learning_rate": 0.01,  # self explanatory
+    "memory_sizes": [100, 50],  # list of lstm layer sizes. For each size a corresponding lstm layer will be created
+    "time_steps": 10,  # number of inputs over which to learn backwards in time
+    "learning_rate": 0.1,  # self explanatory
     "iterations": 10000,  # maximum iterations to train. Will terminate training once reached
     "target_loss": 0.01,  # minimum loss to train for. Will terminate training once reached
     "verbose": True,  # Print status information after each <status_frequency> iterations

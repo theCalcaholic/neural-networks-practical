@@ -31,7 +31,7 @@ config = {
     "time_steps": 20,  # number of inputs over which to learn backwards in time
     "learning_rate": 0.01,  # self explanatory
     "iterations": 10000,  # maximum iterations to train. Will terminate training once reached
-    "target_loss": 0.01,  # minimum loss to train for. Will terminate training once reached
+    "target_loss": 0.03,  # minimum loss to train for. Will terminate training once reached
     "verbose": True,  # Print status information after each <status_frequency> iterations
     "status_frequency": 10,  # frequency to print status (in iterations) if verbose is set to True
     "save_dir": os.path.join(os.getcwd(), "lstm_loremipsum_save")  # path to save/load network weights/biases state to

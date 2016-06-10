@@ -4,7 +4,7 @@ from neural_network import \
     NeuralLayer as Layer, \
     BiasedNeuralLayer as BiasedLayer
 from LSTMLayerCache import LSTMLayerCache
-from util import Logger
+from neural_network.util import Logger
 
 
 class LSTMLayer(object):

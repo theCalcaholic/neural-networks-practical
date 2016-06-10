@@ -4,6 +4,7 @@ import numpy as np
 from lstm_network import LSTMNetwork
 from DataStore import DataStore
 from lstm_network import util
+from neural_network.util import Logger
 
 
 """
@@ -37,7 +38,7 @@ config = {
 }
 
 # print/hide debug information
-util.Logger.DEBUG = False
+Logger.DEBUG = False
 
 # cleanse old visualization files
 v_path = os.path.join(os.getcwd(), 'visualize')

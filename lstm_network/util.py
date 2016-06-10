@@ -1,5 +1,4 @@
 import random
-import numpy as np
 
 
 def get_status_function(data_store, lstm, status_frequency):
@@ -20,19 +19,3 @@ def get_status_function(data_store, lstm, status_frequency):
             status += "freestyle: " + freestyle + "\n\n"
         return status
     return get_status
-
-
-class Logger(object):
-    DEBUG = False
-
-    def __init__(self):
-        raise Exception("This class is abstract. It cannot be initialized!")
-
-    @classmethod
-    def log(cls, s):
-        print(s)
-
-    @classmethod
-    def debug(cls, s):
-        if Logger.DEBUG:
-            print(s)

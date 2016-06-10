@@ -1,5 +1,7 @@
 from neural_network import NeuralLayer, BiasedNeuralLayer
 from neural_network import LayerCache
+from neural_network.util import Logger
+import numpy as np
 
 
 class CachingNeuralLayer(NeuralLayer):
@@ -34,6 +36,14 @@ class CachingNeuralLayer(NeuralLayer):
         cache.output_values = super(CachingNeuralLayer, self).feed(input_data)
         return cache.output_values
 
+    def get_deltas(self, last_deltas, last_weights):
+        return [super(CachingNeuralLayer, self).get_delta(cache.output_values, last_delta, last_weights)
+                for cache, last_delta in zip(self.caches, last_deltas)]
+
+    def learn(self, result, delta, learning_rate):
+        #Logger.log("(expected delta: " + str(np.shape(self.caches[0].output_values)) + ")")
+        #Logger.debug("delta: " + str(delta) + "\nresult:" + str(result))
+        super(CachingNeuralLayer, self).learn(result, delta, learning_rate)
 
 class CachingBiasedNeuralLayer(BiasedNeuralLayer, CachingNeuralLayer):
     """BiasedNeuralLayer that supports caching"""

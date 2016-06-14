@@ -33,7 +33,7 @@ config = {
     "iterations": 10000,  # maximum iterations to train. Will terminate training once reached
     "target_loss": 0.03,  # minimum loss to train for. Will terminate training once reached
     "verbose": True,  # Print status information after each <status_frequency> iterations
-    "status_frequency": 10,  # frequency to print status (in iterations) if verbose is set to True
+    "status_frequency": 1,  # frequency to print status (in iterations) if verbose is set to True
     "save_dir": os.path.join(os.getcwd(), "lstm_loremipsum_save")  # path to save/load network weights/biases state to
 }
 
@@ -48,9 +48,11 @@ for f in next(os.walk(v_path), (None, None, []))[2]:
 # Training sets
 """input_text = "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"\
              + "abcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddefabcddef"""""
-input_text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, ipsum sed diam"
-#input text = os.open("lstm_training_data/vanishing_vocables_de.txt", r).read()
-#input_text = os.open("lstm_training_data/loremipsum.txt", r).read()
+#input_text = "Lorem ipsum dolor sit amet, consetetur sadipscing elitr, ipsum sed diam"
+#with os.open("lstm_training_data/vanishing_vocables_de.txt", "r"):
+#with os.open("lstm_training_data/loremipsum.txt", "r"):
+with os.fdopen(os.open("lstm_training_data/schachnovelle.txt", os.O_RDONLY)) as f:
+    input_text = f.read()
 
 
 # initialize data store object

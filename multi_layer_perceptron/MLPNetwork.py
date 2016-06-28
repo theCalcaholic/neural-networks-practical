@@ -209,8 +209,8 @@ class MLPNetwork:
                 loss = self.learn(target_value)
 
                 # collect output and target values for status printing
-                output_list.append(outputs)
-                target_list.append(targets)
+                output_list.append(float(outputs[0]))
+                target_list.append(float(target_value))
                 loss_list.append(loss)
             # calculate average loss of last iteration
             iteration_loss = np.average(loss_list)
@@ -226,8 +226,8 @@ class MLPNetwork:
                 loss_diff -= iteration_loss
                 if self.config["verbose"]:
                     print(self.get_status(
-                        output_list,
-                        target_list,
+                        list(output_list),
+                        list(target_list),
                         iteration=str(i),
                         learning_rate=str(self.config["learning_rate"]),
                         loss=str(iteration_loss),

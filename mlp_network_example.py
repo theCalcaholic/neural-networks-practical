@@ -1,21 +1,21 @@
-import numpy
+import numpy as np
 from neural_network.util import Logger
 from neural_network.NeuralLayer import NeuralLayer as Layer
 from multi_layer_perceptron.MLPNetwork import MLPNetwork
 
 Logger.DEBUG = False
 
-data_in = numpy.array([[[0], [0]], [[0], [1]], [[1], [0]], [[1], [1]]])
-data_out_xor = numpy.array([[0], [1], [1], [0]])
+data_in = np.array([[[0], [0]], [[0], [1]], [[1], [0]], [[1], [1]]])
+data_out_xor = np.array([[0], [1], [1], [0]])
 
-data_out_and = numpy.array([[0], [0], [0], [1]])
+data_out_and = np.array([[0], [0], [0], [1]])
 
-data_out_or = numpy.array([[0], [1], [1], [1]])
+data_out_or = np.array([[0], [1], [1], [1]])
 
 data_out = data_out_xor
 
-Logger.log("data_shape: " + str(numpy.shape(data_in)))
-Logger.log("data[0]_shape: " + str(numpy.shape(data_in[0])))
+Logger.log("data_shape: " + str(np.shape(data_in)))
+Logger.log("data[0]_shape: " + str(np.shape(data_in[0])))
 
 mlp = MLPNetwork()
 
@@ -51,5 +51,5 @@ while True:
                           str(len(data_in[0])) + "):\n")
     if not len(test_data_str):
         break
-    test_data = [[int(x)] for x in test_data_str.split(",")]
+    test_data = np.array([[int(x)] for x in test_data_str.split(",")])
     print("Result: " + str(mlp.predict(test_data)))

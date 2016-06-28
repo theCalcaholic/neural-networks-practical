@@ -2,7 +2,9 @@ import numpy as np
 from util import Logger
 import KTimage
 import os
+import pyopencl as cl
 
+OPENCL_ENABLED = True
 
 class NeuralLayer(object):
     """Simple perceptron layer with weight matrix"""
@@ -11,28 +13,53 @@ class NeuralLayer(object):
                           "  in_size: " + str(in_size) + "\n" + \
                           "  out_size: " + str(out_size))
         # initialize weight matrix
-        self.weights = np.random.uniform(-0.001, 0.001, (out_size, in_size)).astype(np.float64)
+        self.weights = np.random.uniform(-0.001, 0.001, (out_size, in_size)).astype(np.float32)
         # set biases if not already set (by child class for example)
         if not hasattr(self, 'biases'):
-            self.biases = np.zeros(out_size).astype(np.float64)
+            self.biases = np.zeros(out_size).astype(np.float32)
         # set activation function and derivate
         self.activation = activation_fn or NeuralLayer.activation_linear
         self.activation_deriv = activation_fn_deriv or NeuralLayer.activation_linear_deriv
         # set size and input size
         self.size = out_size
         self.in_size = in_size
+        if OPENCL_ENABLED:
+            print(cl.get_cl_header_version())
+            self.ctx = cl.create_some_context(True)
+            self.queue = cl.CommandQueue(self.ctx)
 
     def feed(self, input_data):
         # calculate activation of layer for given inputs
         #Logger.DEBUG = True
         Logger.debug("NeuralLayer:feed")
         Logger.debug("input: " + str(np.shape(input_data)))
-        dot = np.dot(self.weights, input_data)
-        result = self.activation(dot + np.atleast_2d(self.biases).T)
+        Logger.debug("biases: " + str(np.shape(self.biases)))
+        input_data = input_data.astype(np.float32)
+        dot = np.dot(self.weights, input_data).flatten()
+        Logger.debug("dot: " + str(np.shape(dot)))
+        if Logger.DEBUG:
+            raw_input("...")
+        if OPENCL_ENABLED:
+            mf = cl.mem_flags
+            cl_dot = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=dot)
+            cl_biases = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=self.biases)
+            prg = cl.Program(self.ctx, """
+            __kernel void sum( __global const float *a_g, __global const float *b_g, __global float *res_g ) {
+                int gid = get_global_id(0);
+                res_g[gid] += a_g[gid] + b_g[gid];
+            }
+            """).build()
+            cl_result = cl.Buffer(self.ctx, mf.READ_WRITE, dot.nbytes)
+            prg.sum(self.queue, dot.shape, None, cl_dot, cl_biases, cl_result)
+            addition = np.empty_like(dot)
+            cl.enqueue_copy(self.queue, addition, cl_result)
+        else:
+            addition = dot + self.biases.T
+        result = self.activation(addition)
         Logger.debug("output: " + str(np.shape(result)))
         #Logger.debug("weights: " + str(np.shape(self.weights)))
         #Logger.debug("dot shape: " + str(np.shape(dot)))
-        #Logger.DEBUG = False
+        Logger.DEBUG = False
         return result
 
     def learn(self, result, delta, learning_rate):
